@@ -1,0 +1,4 @@
+name = "Torrent"
+uuid = "a831d48f-0591-49bf-b1e7-0ccdf4ed7091"
+authors = ["Brent Daniel <brent23961@hotmail.com>"]
+version = "0.1.0"
