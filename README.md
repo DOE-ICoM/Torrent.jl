@@ -1,4 +1,6 @@
 
+![Probability of Exceedance](assets/Exceedance-Figure.jpg)
+
 # Introduction
 
 ## What is Torrent?
