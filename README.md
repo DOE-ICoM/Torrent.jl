@@ -1,5 +1,7 @@
 
-![Probability of Exceedance](assets/Exceedance-Figure.jpg)
+![Exceedance](assets/Exceedance-Figure.jpg)
+Probabilistic ensemble generation with Torrent.
+
 
 # Introduction
 
@@ -29,18 +31,48 @@ This leap forward in computational efficiency makes it possible to contemplate:
 
 Torrent two inputs with a third optional input:
 
-- A Digital Elevation Model (DEM) that describes the relevant topography;
-- A description of spatiotemporal source(s) of fluid flux (multiple methodologies supported); an
-- An optional spatial representation of the manning coefficient (a single value covering the entire topography can be used as well).
+- A *Digital Elevation Model* (DEM) that describes the relevant topography;
+- A description of spatiotemporal *source(s) of fluid flux* (multiple types of spatiotemporal boundary conditions are supported); and
+- An optional spatial representation of the *manning coefficient* (a single, homogeneous value for the entire region can be used as well).
+
 
 ## What Outputs Does Torrent Provide?
 
 Torrent provides a number of outputs that can be useful in characterizing or visualizing different aspects of flood or simulation dynamics. These include:
 
-- Periodic snapshots of flow depth along with the maximum depth observed in each cell;
-- Periodic and peak characterizations of contaminant levels (if a contaminated area has been specified) [optional];
-- The geospatial distributions of the stochastically generated flux sources for each flux period [optional]; and
-- Temporal tracks of selected rivulets for the purpose of analysis or visualization [optional].
+- Periodic snapshots of flow depth along with the maximum depth observed in each cell. Filename patterns: `depth-n-t.tif` and `peak-depth-n.tif`;
+- Periodic and peak characterizations of contaminant levels (if a contaminated area has been specified). Filename patterns: `contamination-n-t.tif`, `concentration-n-t.tif`, and `peak-contamination-n.tif`. [optional];
+- The geospatial distributions of the stochastically generated flux sources for each flux period . Filename pattern: [base precip filename]`-source-lat-longs-i.csv` [optional]; and
+- Temporal tracks of selected rivulets for the purpose of analysis or visualization. Filename pattern: `rivulet-tracks-n.csv` [optional].
+
+Where `n` is the iteration, `t` is the simulation step, and `i` is the precipitation distribution. Finally, Torrent outputs a file that captures:
+
+- Timing information for each simulation run, including a copy of the configuration data used so that the simulation can be duplicated in the future. Filename pattern: `timing-for-n-[date stamp].json`.
+
+
+## Use
+
+To use Torrent you will first need to add it to your Julia environment. To do this, start a **Julia REPL**, press the right-bracket key, ']', to bring up the package manager, and enter:
+
+```julia
+add https://github.com/DOE-ICoM/Torrent.jl.git
+```
+
+This should pull the Torrent package into your local environment. You should then be able to import the Torrent package into your julia code. The main entry point is the `torrent` function, which takes only a single parameter, the name of a configuration file in JSON format.
+
+```julia
+import Torrent
+
+filename = "/path/to/configuration_file.json"
+
+torrent(filename)
+```
+
+The `torrent` function provides progress information during execution. Note that the ETA information can be particularly unreliable, especially during the simulation as the computation time depends on the number of rivulets, which can vary dramatically over the course of a run. A sample screenshot is shown below:
+
+![Torrent Screenshot](assets/Torrent-Screenshot.png)
+
+The structure of the configuration file is described in the following section. 
 
 
 # Torrent Configuration
@@ -130,9 +162,9 @@ Rivulets are characterized by two user-adjustable parameters: their thickness, `
 
 - `rivulet-thickness` is the thickness of a rivulet in meters. High fidelity simulations might use values as small as 0.01 meters, while coarser initial explorations might use values as large as 0.5 meters. [`Float`]
 
-- `rivulet-length` should be provided in grid cells. To get the absolute length of a rivulet, one then needs to multiply by the breadth of a DEM grid cell. Rivulets can often be kilometers long. [`Int`]
+- `rivulet-length` should be provided in grid cells. To get the absolute length of a rivulet, one would then need to multiply by the width of a DEM grid cell. Rivulets can often be kilometers long. [`Int`]
 
-All rivulets have the same length and thickness.
+All rivulets have the same length and thickness at this point.
 
 
 ## Simulation Parameters
@@ -141,7 +173,7 @@ There are a number of parameters that define various aspects of the simulation t
 
 - `time-step-seconds`, as the name implies, is the duration of a time step in seconds. Both the simulation outcome and computational efficiency should be relatively insensitive to this within some bounds. Set it too big or too small, though, and things can go a bit haywire. Sixty seconds is usually quite reasonable. [`Float`]
 
-- `max-steps` is the duration of a simulation realization in steps. For example, if you wanted to run a one hour simulation and each time step was sixty seconds, then you would set `max-steps` to 60. A 24 hour simulation would be 1,440 steps. Longer simulations might be thousands or tens of thousands of steps. [`Int`]
+- `max-steps` is the duration of a simulation realization in steps. For example, if a one hour simulation was desired and each time step was sixty seconds, then you would set `max-steps` to 60. A 24 hour simulation would be 1,440 steps. Longer simulations might be thousands or even tens of thousands of steps. [`Int`]
 
 - `save-every-steps` specifies how frequently, in time steps, to output a snapshot of the current depth (and potentially contamination) grids. Note that for bigger grids the save time (and disk space) can be significant if snapshots are saved frequently. [`Int`]
 
@@ -149,7 +181,7 @@ There are a number of parameters that define various aspects of the simulation t
 
 - `output-directory` indicates where to store the output files. All output files have automatically generated filenames, so only the directory need be specified. Note that files are overwritten without warning. [`String`]
 
-- `exclude-no-data-cells` flags whether or not to treat cells with the no data value as boundary cells, essentially terminating the rivulet when such a cell is reached. This can speed things up, for example, when running a coastal simulation if you set the no data value to 0 and enable this flag. This would prevent the simulation from continuing out over the ocean. [`Bool`]
+- `exclude-no-data-cells` flags whether or not to treat cells with the no data value as boundary cells, essentially terminating the rivulet when such a cell is reached. This can speed things up, for example, when running a coastal simulation if you set the no data value to 0 in the DEM raster and enable this flag. This would prevent the simulation from continuing out over the ocean. It does, however, mean rivulets will be terminated when they reach sea level, which can change the apparent flood dynamics a significant difference inland. Just beware. [`Bool`]
 
 - `num-realizations` determines how many realizations to automatically run using the same rivulet and simulation parameters. Since Torrent is stochastic, running multiple realizations to generate an ensemble of results can help quantify some aspects of model uncertainty. The output filenames include the realization number to prevent overwriting the output from prior realizations. Note that the set of flux sources are reloaded for every realization and new source distributions randomly generated for each. [`Int`]
 
@@ -219,7 +251,7 @@ Alternatively, precipitation distributions may be encapsulated in a single, mult
 
 ### Point Source Fluxes
 
-Torrent also has an ability to utilize point source data as might be gleaned, for example, from the National Water Model output or use cases where hydrographs may be defined at one or a limited number of locations. These hydrographs may be supplied in the form of a CSV file. The first column should denote the Y-location of the source (e.g. latitude), the second column the X-location of the source (e.g. longitude). The remaining columns in each row, the third and beyond, should then represent a time series of the lateral influx of    precipitation at that location in m^3/s. The CSV file is not expected to contain a header row.
+Torrent also has an ability to utilize point source data as might be gleaned, for example, from the National Water Model output or use cases where hydrographs may be defined at one or a limited number of locations. These hydrographs may be supplied in the form of a CSV file. The first column should denote the Y-location of the source (e.g. latitude), the second column the X-location of the source (e.g. longitude). The remaining columns in each row, the third and beyond, should then represent a time series of the lateral influx of    precipitation at that location in m^3/s. The CSV file should not contain a header row. The configuration elements required for this type of source boundary condition are:
 
 ```json
   "rain-nwm": {
@@ -233,7 +265,7 @@ Torrent also has an ability to utilize point source data as might be gleaned, fo
 
 ### Depth Grid Series as Boundary Conditions (File Series)
 
-Finally, fluxes may be described implicitly by a series of depth forecasts from a prior simulation. This allows one to setup nested simulations where, for example, the results from a low-resolution, wide-area forecast can serve as the boundary condition for a smaller, nested, much higher-resolution simulation. Manning's equation is used based on the local flood depth and water surface elevation slope to determine the velocity. The component of the velocity perpendicular to the boundary is used to set the flux.
+Finally, fluxes may be described implicitly by a series of depth forecasts from a prior simulation. This allows one to setup nested simulations where, for example, the results from a low-resolution, wide-area forecast can serve as the boundary condition for a smaller, nested, much higher-resolution simulation. To determine the flux at the boundary, Manning's equation is used along with the local flow depth and water surface elevation slope to estimate the velocity. The component of the velocity perpendicular to the boundary is used to set the flux.
 
 ```json
   "boundary-conditions-time-series": {
@@ -256,7 +288,7 @@ Finally, fluxes may be described implicitly by a series of depth forecasts from 
 - `min-index`: The starting index of the depth raster to use. [`Int`]
 - `max-index`: The last index of the depth raster to use. [`Int`]
 - `index-step`: Depth files need not be sequentially numbered. Depth rasters might, for example, have been written out every 60 or 120 time steps. That number would go here. [`Int`]
-- `index-offset`: The index number is used to compute when within the current simulation the flux boundary condition from the prior simulation is is applicable. You might, however, want to start a simulation at a time corresponding to something other than the start time of the prior simulation. `index-offset` can be used to manage this case. For example, if you wanted to start this simulation at what would correspond to step 1,440 of the prior simulation, you could set both `min-index` and `index-offset` to 1,440. [`Int`]
+- `index-offset`: The index number is used to compute when within the current simulation the flux boundary condition from the prior simulation is applicable. You might, however, want to start a simulation at a time corresponding to something other than the start time of the prior simulation. `index-offset` can be used to manage this case. For example, if you wanted to start this simulation at what would correspond to step 1,440 of the prior simulation, you could set both `min-index` and `index-offset` to 1,440. [`Int`]
 - `seconds-per-step` denotes the number of seconds per time step in the prior simulation. [`Float`]
 - `inset-from-border`: When a rivulet hits a border in the a Torrent simulation it is marked for eventual removal from the simulation and the position of the rivulet's head location stops evolving. As such, we don't want to create new rivulets representing the influx of material directly on the border. In fact, even if the local surface slope is generally away from the border, the local influx of material can push water back upstream and out of the domain. The boundary flux should, therefore, be seeded a few cells into the nested simulation domain. The units are grid cells of the *inner* DEM domain. A value of 10 may be a reasonable place to start. [`Int`]
 
@@ -266,14 +298,14 @@ Finally, fluxes may be described implicitly by a series of depth forecasts from 
 [Manning's formula](https://en.wikipedia.org/wiki/Manning_formula) is used to approximate velocities in Torrent. Manning's coefficient relates to the apparent roughness of the terrain over which the flood waters are moving.
 
 ```json
-"manning-coef": [Float]
+"manning-coef": [Float] or [String]
 ```
 
-- `manning-coef` can be provided as either a `Float` or a `String` value. In the former case, Manning's coefficient is assumed to be homogeneous across the simulation domain. In the latter case, the `String` is taken to be the filename of a raster grid, the first band of which represents the potentially spatially varying value of the Manning coefficient.
+- `manning-coef` can be provided as either a `Float` or a `String` value. In the former case, Manning's coefficient is assumed to be homogeneous across the simulation domain. In the latter case, the `String` is taken to be the filename of a raster grid, the first band of which represents the potentially spatially varying value of the Manning coefficient. Any grid representing the manning coefficient should be in the same projection as the DEM.
 
 ## Contamination [ALPHA]
 
-A rudimentary, largely untested, and not yet validated capability to do contaminant tracing is included in Torrent. The feature can be useful, however, in tracking flow movements and debugging simulations. A contaminated area is specified by a rectangular bounding box. Rivulets whose head moves through this region are contaminated at a rate `contamination-rate`. The entire rivulet is assumed to be uniformly contaminated. Only a single, rectangular contamination area can currently be specified.
+A rudimentary, largely untested, and not yet validated capability to do contaminant tracing is included in Torrent. The feature can be useful in tracking flow movements and debugging simulations. A contaminated area is specified by a rectangular bounding box. Rivulets whose head moves through this region are contaminated at a rate `contamination-rate`. The entire rivulet is assumed to be uniformly contaminated. Only a single, rectangular contamination area can currently be specified.
 
 ```json
 "contaminated-area": {
@@ -291,7 +323,7 @@ A rudimentary, largely untested, and not yet validated capability to do contamin
 - `ll-lontiude`: The X-position of the lower-left corner of the contaminated area.
 - `ur-latitude`: The Y-position of the upper-right corner of the contaminated area.
 - `ur-lontiude`: The X-position of the upper-right corner of the contaminated area.
-- `start-step`: The first time step at which the contamination area is activated.
+- `start-step`: The first time step at which the contamination area is activate.
 - `end-step`: The last time step the contamination area is active.
 - `contamination-rate`: The rate at which the contaminant is transferred to rivulets.
 
@@ -308,6 +340,31 @@ Individual rivulets may also be tracked for analytical, debugging, or visualizat
 }
 ```
 
-- `num-rivulets` specifies the number of rivulets to track. Note that because of the way tracking is done internally, there is currently a search function that scales linearly with `num-rivulets`. This search is done for every simulation step. Too many tracks could start to impede algorithm performance. [`Int`]
-- `only-contaminated` constrains tracked rivulets to be only among those that have been contaminated. Setting this flag along with the specification of a `contaminated-area` provides an easy way to visualize or debug flow at a particular location or time in the simulation. [`Bool`]
-- `track-every-time-steps` specifies how frequently to log tracked rivulet positions. A value of 1 would log positions at every time step. A value of 10 will log positions only every tenth time step. [`Int`]
+- `num-rivulets` specifies the number of rivulets to track. Note that because of the way tracking is done internally, there is currently a search function that scales linearly with `num-rivulets`. This search is done for every simulation step. Too many tracks could start to impede algorithm performance. Tracking just a half-dozen rivulets is often sufficient for many needs. [`Int`]
+- `only-contaminated` constrains tracked rivulets to be only among those that have been contaminated. Setting this flag along with the specification of a `contaminated-area` provides an easy way to visualize flow at a particular location or time in the simulation. [`Bool`]
+- `track-every-time-steps` specifies how frequently to log tracked rivulet positions. A value of 1 would log positions at every time step. A value of 10 will log positions only every tenth time step. Note that a rivulet may make multiple hops within a single time step. [`Int`]
+
+# Disclaimer
+
+This material was prepared as an account of work sponsored by an agency
+of the United States Government.  Neither the United States Government
+nor the United States Department of Energy, nor Battelle, nor any of
+their employees, nor any jurisdiction or organization that has cooperated
+in the development of these materials, makes any warranty, express or
+implied, or assumes any legal liability or responsibility for the accuracy,
+completeness, or usefulness or any information, apparatus, product, software,
+or process disclosed, or represents that its use would not infringe privately
+owned rights. Reference herein to any specific commercial product, process,
+or service by trade name, trademark, manufacturer, or otherwise does not
+necessarily constitute or imply its endorsement, recommendation, or favoring
+by the United States Government or any agency thereof, or Battelle Memorial
+Institute. The views and opinions of authors expressed herein do not
+necessarily state or reflect those of the United States Government or any
+agency thereof.
+   PACIFIC NORTHWEST NATIONAL LABORATORY
+       operated by
+   BATTELLE
+       for the
+   UNITED STATES DEPARTMENT OF ENERGY
+        under Contract DE-AC05-76RL01830
+
