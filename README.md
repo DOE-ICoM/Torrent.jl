@@ -92,6 +92,7 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
   "compute-max-every-steps": [Int],
   "output-directory": [String],
   "exclude-no-data-cells": [Bool],
+  "num-realizations": [Int],
 
   "dem": {
     "filename": [String],
