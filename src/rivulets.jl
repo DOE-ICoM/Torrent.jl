@@ -594,13 +594,14 @@ function grid_cells_to_move(sim::Simulation, a::Index, ob::Union{Index,Nothing})
   isnothing(ob) && return (1, sim.dem.registration.cell_size_meters / sim.time_step)
 
   # compute the surface elevations and slope
+  seo = sim.dem[a-1] + array_read(sim.depth, a-1, sim.lk)
   sea = sim.dem[a] + array_read(sim.depth, a, sim.lk)
   seb = sim.dem[ob] + array_read(sim.depth, ob, sim.lk)
   s = -(sea - seb) / sim.dem.registration.cell_size_meters
   s = s < 0.0 ? 0.0 : s
 
   # velocity from manning's formula
-  v = array_read(sim.depth, a, sim.lk)^0.67 * sqrt(s) / manning(sim.manning_coef,a)
+  v = array_read(sim.depth, a, sim.lk)^0.67 * sqrt(s) / manning(sim.manning_coef,a) + 0.001*(seo-2*sea+seb)/(sim.dem.registration.cell_size_meters)^2
 
   # this next line deserves a lot of discussion and additional research. it is
   # to account for the fact that ...
