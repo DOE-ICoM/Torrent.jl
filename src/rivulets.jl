@@ -163,8 +163,8 @@ mutable struct Simulation
   "Number of rivulets being tracked so far."
   rivulets_num_tracking :: Int
 
-  "How frequently to track position of rivulets."
-  rivulets_tracking_every_time_steps :: Int
+  "Second order smoothing (diffusion) of manning equation"
+  diffusion :: Float64
 
 end
 
@@ -184,7 +184,7 @@ function Simulation(
   source_series::Vector{PrecipitationTimeSeries},
   output_directory::String, write_depth_every::Int,
   compute_max_every::Int, number_of_threads::Int,
-  rivulet_length::Int, rivulet_thickness::Float64,
+  rivulet_length::Int, rivulet_thickness::Float64, diffusion::Float64,
   time_step::Float64, manning_representation::Union{Float64,String}, dem::Grid,
   exclude_no_data_cells::Bool,
   contaminated_area::Union{Nothing,ContaminatedArea},
@@ -225,7 +225,7 @@ function Simulation(
 
   # Call the full constructor with these initialized values.
   Simulation(source_series, output_directory, write_depth_every,
-    compute_max_every, number_of_threads, rivulet_length, rivulet_thickness,
+    compute_max_every, number_of_threads, rivulet_length, rivulet_thickness, diffusion,
     vol, time_step, dem, depth, dem.registration.nrows, dem.registration.ncols,
     exclude_no_data_cells, manning_coef, ReentrantLock(), nbrs,
     contaminated_area,
@@ -601,7 +601,7 @@ function grid_cells_to_move(sim::Simulation, a::Index, ob::Union{Index,Nothing})
   s = s < 0.0 ? 0.0 : s
 
   # velocity from manning's formula
-  v = array_read(sim.depth, a, sim.lk)^0.67 * sqrt(s) / manning(sim.manning_coef,a) + 0.001*(seo-2*sea+seb)/(sim.dem.registration.cell_size_meters)^2
+  v = array_read(sim.depth, a, sim.lk)^0.67 * sqrt(s) / manning(sim.manning_coef,a) + sim.diffusion*(seo-2*sea+seb)/(sim.dem.registration.cell_size_meters)^2
 
   # this next line deserves a lot of discussion and additional research. it is
   # to account for the fact that ...

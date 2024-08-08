@@ -91,6 +91,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     1,  # num threads is no longer used in the Julia version of the code.
     config["rivulet-length"],
     config["rivulet-thickness"],
+    config["diffusion"],
     config["time-step-seconds"],
     haskey(config, "manning-coef") ? config["manning-coef"] : default_manning_coef,
     dem,
