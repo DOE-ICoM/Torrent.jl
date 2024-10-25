@@ -58,7 +58,7 @@ To use Torrent you will first need to add it to your Julia environment. To do th
 add https://github.com/DOE-ICoM/Torrent.jl.git
 ```
 
-This should pull the Torrent package into your local environment. You should then be able to import the Torrent package into your julia code. The main entry point is the `torrent` function, which takes only a single parameter, the name of a configuration file in JSON format.
+This should pull the Torrent package into your local environment. You should then be able to import the Torrent package into your julia code. The main entry point is the `torrent` function, which takes only a single parameter, the name of a configuration file in JSON format. (Note, that if you later want to update to a newer version of Torrent, just go back to the package manager and 'update Torrent'.)
 
 ```julia
 import Torrent
