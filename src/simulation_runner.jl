@@ -99,7 +99,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["num-rivulets"] : 0,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["only-contaminated"] : false,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["track-every-time-steps"] : -1,
-    haskey(config, "interpolate_output") ? config["interpolate_output"] : false
+    haskey(config, "interpolate-output") ? config["interpolate-output"] : false
   )
 
   # run the simulation
