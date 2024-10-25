@@ -166,6 +166,9 @@ mutable struct Simulation
   "How frequently to track position of rivulets."
   rivulets_tracking_every_time_steps :: Int
 
+  "Whether to interpolate outputs onto a center, rather than corner, based grid."
+  interpolate_output :: Bool
+
 end
 
 
@@ -190,7 +193,8 @@ function Simulation(
   contaminated_area::Union{Nothing,ContaminatedArea},
   rivulet_tracking_total_num::Int,
   rivulet_tracking_only_contaminated::Bool,
-  rivulet_track_every_time_steps::Int
+  rivulet_track_every_time_steps::Int,
+  interpolate_output :: Bool
 )
 
   # Depth grid initialized to zero everywhere.
@@ -234,7 +238,8 @@ function Simulation(
     rivulet_tracking_ids,
     rivulet_tracking_paths,
     0,
-    rivulet_track_every_time_steps
+    rivulet_track_every_time_steps,
+    interpolate_output
   )
 
 end

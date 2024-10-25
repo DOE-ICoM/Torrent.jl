@@ -99,6 +99,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["num-rivulets"] : 0,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["only-contaminated"] : false,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["track-every-time-steps"] : -1,
+    haskey(config, "interpolate_output") ? config["interpolate_output"] : false
   )
 
   # run the simulation
@@ -321,16 +322,16 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
           end
 
           if strip(sim.dem.registration.proj_string) != "" 
-            save_geotiff(sim.output_directory*"depth-$iteration-$sim_step.tif", sim.depth, sim.dem.registration, true)
+            save_geotiff(sim.output_directory*"depth-$iteration-$sim_step.tif", sim.depth, sim.dem.registration, sim.interpolate_output)
             if !isnothing(sim.contamination)
-              save_geotiff(sim.output_directory*"concentration-$iteration-$sim_step.tif", concentration, sim.dem.registration, true)
-              save_geotiff(sim.output_directory*"contamination-$iteration-$sim_step.tif", sim.contamination, sim.dem.registration, true)
+              save_geotiff(sim.output_directory*"concentration-$iteration-$sim_step.tif", concentration, sim.dem.registration, sim.interpolate_output)
+              save_geotiff(sim.output_directory*"contamination-$iteration-$sim_step.tif", sim.contamination, sim.dem.registration, sim.interpolate_output)
             end
           else
-            save_esri_asc_file(sim.output_directory*"depth-$iteration-$sim_step.asc", sim.depth, sim.dem.registration, true)
+            save_esri_asc_file(sim.output_directory*"depth-$iteration-$sim_step.asc", sim.depth, sim.dem.registration, sim.interpolate_output)
             if !isnothing(sim.contamination)
-              save_esri_asc_file(sim.output_directory*"concentration-$iteration-$sim_step.asc", concentration, sim.dem.registration, true)
-              save_esri_asc_file(sim.output_directory*"contamination-$iteration-$sim_step.asc", sim.contamination, sim.dem.registration, true)
+              save_esri_asc_file(sim.output_directory*"concentration-$iteration-$sim_step.asc", concentration, sim.dem.registration, sim.interpolate_output)
+              save_esri_asc_file(sim.output_directory*"contamination-$iteration-$sim_step.asc", sim.contamination, sim.dem.registration, sim.interpolate_output)
             end
           end
         end        
@@ -367,16 +368,16 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
     end
 
     if strip(sim.dem.registration.proj_string) != "" 
-      save_geotiff(sim.output_directory * "peak-depth-$iteration.tif", max_depth, sim.dem.registration, true)
+      save_geotiff(sim.output_directory * "peak-depth-$iteration.tif", max_depth, sim.dem.registration, sim.interpolate_output)
       if !isnothing(sim.contamination)
         # save_geotiff(sim.output_directory*"peak-concentration-$iteration.tif", max_concentration, sim.dem.registration, true)
-        save_geotiff(sim.output_directory*"peak-contamination-$iteration.tif", max_contamination, sim.dem.registration, true)
+        save_geotiff(sim.output_directory*"peak-contamination-$iteration.tif", max_contamination, sim.dem.registration, sim.interpolate_output)
       end
     else
-      save_esri_asc_file(sim.output_directory * "peak-depth-$iteration.asc", max_depth, sim.dem.registration, true)
+      save_esri_asc_file(sim.output_directory * "peak-depth-$iteration.asc", max_depth, sim.dem.registration, sim.interpolate_output)
       if !isnothing(sim.contamination)
         # save_esri_asc_file(sim.output_directory*"peak-concentration-$iteration.asc", max_concentration, sim.dem.registration, true)
-        save_esri_asc_file(sim.output_directory*"peak-contamination-$iteration.asc", max_contamination, sim.dem.registration, true)
+        save_esri_asc_file(sim.output_directory*"peak-contamination-$iteration.asc", max_contamination, sim.dem.registration, sim.interpolate_output)
       end
     end
   end

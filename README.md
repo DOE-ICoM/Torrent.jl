@@ -93,6 +93,7 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
   "output-directory": [String],
   "exclude-no-data-cells": [Bool],
   "num-realizations": [Int],
+  "interpolate_output": [Bool]
 
   "dem": {
     "filename": [String],
@@ -185,6 +186,8 @@ There are a number of parameters that define various aspects of the simulation t
 - `exclude-no-data-cells` flags whether or not to treat cells with the no data value as boundary cells, essentially terminating the rivulet when such a cell is reached. This can speed things up, for example, when running a coastal simulation if you set the no data value to 0 in the DEM raster and enable this flag. This would prevent the simulation from continuing out over the ocean. It does, however, mean rivulets will be terminated when they reach sea level, which can change the apparent flood dynamics a significant difference inland. Just beware. [`Bool`]
 
 - `num-realizations` determines how many realizations to automatically run using the same rivulet and simulation parameters. Since Torrent is stochastic, running multiple realizations to generate an ensemble of results can help quantify some aspects of model uncertainty. The output filenames include the realization number to prevent overwriting the output from prior realizations. Note that the set of flux sources are reloaded for every realization and new source distributions randomly generated for each. [`Int`]
+
+- `interpolate_output` selects whether the resulting flood depth and contamination files are interpolated onto a grid based at cell centers rather than edges. This results in output grids with one less row and column than the input DEM. It can be useful when comparing results to those of other overland flood models.
 
 ## Digital Elevation Model
 
