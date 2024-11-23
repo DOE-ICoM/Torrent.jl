@@ -58,23 +58,31 @@ To use Torrent you will first need to add it to your Julia environment. To do th
 add https://github.com/DOE-ICoM/Torrent.jl.git
 ```
 
-Note that if you run into an access error, you may need to, first, ensure
-that you have your GitHub account setup so that it can be accessed via
-SSH and, second, ensure that Julia knows to use the CLI version of SSH. Once you've opened the REPL, but before switching to the package manager, you may need to enter:
+If you run into an access error, you may need to, first, ensure that you have your GitHub account setup so that it can be accessed via SSH and, second, ensure that Julia knows to use the CLI version of SSH. Once you've opened the REPL, but before switching to the package manager, you may need to enter:
 
 ```julia
 ENV["JULIA_PKG_USE_CLI_GIT"] = true
 ```
 
-Once this is working, the `add` command should pull the Torrent package into your local environment. You should then be able to import the Torrent package into your julia code. The main entry point is the `torrent` function, which takes only a single parameter, the name of a configuration file in JSON format. (Note, that if you later want to update to a newer version of Torrent, just go back to the package manager and 'update Torrent'.)
+Once this is working, the `add` command should pull the Torrent package into your local environment. (Note, that if you later want to update to a newer version of Torrent, just go back to the package manager and 'update Torrent'.) You should now be able to import the Torrent package into your julia code. The main entry point is the `torrent` function. It takes only a single parameter, the name of a JSON-based configuration file.
 
 ```julia
+# my_main_file.jl
+
 import Torrent
 
 filename = "/path/to/configuration_file.json"
 
 torrent(filename)
 ```
+
+Torrent is **multithreaded**. In order to make use of this feature, though, we need to let Julia know to launch multiple threads at run time. If running from the command line, julia can be launched, for example, with 8 threads using:
+
+```julia
+julia --threads 8 my_main_file.jl
+```
+
+If you're using VS Code, before running Torrent open the Settings (`Cmd ,`), search for `julia threads`, and set the corresponding value to the number of cores you have (or would like to use). Note that Julia does seem to have a bug related to threading. We have had trouble before if this number is set too high where Torrent will simply hang in the middle of a run, with no further progress and no CPU load. If this happens, you might try reducing the number of threads it's launched with. This often solves the problem.
 
 The `torrent` function provides progress information during execution. Note that the ETA information can be particularly unreliable, especially during the simulation as the computation time depends on the number of rivulets, which can vary dramatically over the course of a run. A sample screenshot is shown below:
 
