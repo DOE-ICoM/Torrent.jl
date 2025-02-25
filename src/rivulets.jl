@@ -143,7 +143,7 @@ mutable struct Simulation
   lk :: ReentrantLock
 
   "Relative location of neighbors that will be check for next rivulet move (initialized by the constructor)."
-  neighbors :: Vector{Tuple{Index,Float64}}
+  neighbors :: Vector{Vector{Tuple{Index,Float64}}}
 
   "An optional instance of a contaminated area."
   contaminated_area :: Union{Nothing,ContaminatedArea}
@@ -165,6 +165,9 @@ mutable struct Simulation
 
   "Second order smoothing (diffusion) of manning equation"
   diffusion :: Float64
+
+  "Whether to interpolate outputs onto a center, rather than corner, based grid."
+  interpolate_output :: Bool
 
 end
 
@@ -190,7 +193,8 @@ function Simulation(
   contaminated_area::Union{Nothing,ContaminatedArea},
   rivulet_tracking_total_num::Int,
   rivulet_tracking_only_contaminated::Bool,
-  rivulet_track_every_time_steps::Int
+  rivulet_track_every_time_steps::Int,
+  interpolate_output :: Bool
 )
 
   # Depth grid initialized to zero everywhere.
@@ -215,6 +219,8 @@ function Simulation(
     (Index(1, 1), 1.41)
   ]
 
+  nbr_permutations = collect(Combinatorics.permutations(nbrs))
+
   # parses the representation of the manning coefficient. this may be either
   # a constant float value or a string filename representing a raster grid.
   manning_coef = parse_manning(manning_representation, dem.registration.units)
@@ -227,14 +233,15 @@ function Simulation(
   Simulation(source_series, output_directory, write_depth_every,
     compute_max_every, number_of_threads, rivulet_length, rivulet_thickness, diffusion,
     vol, time_step, dem, depth, dem.registration.nrows, dem.registration.ncols,
-    exclude_no_data_cells, manning_coef, ReentrantLock(), nbrs,
+    exclude_no_data_cells, manning_coef, ReentrantLock(), nbr_permutations,
     contaminated_area,
     contamination,
     rivulet_tracking_only_contaminated,
     rivulet_tracking_ids,
     rivulet_tracking_paths,
     0,
-    rivulet_track_every_time_steps
+    rivulet_track_every_time_steps,
+    interpolate_output
   )
 
 end
@@ -432,7 +439,8 @@ function lowest_surface_nbr_relative(sim::Simulation, rivulet::Rivulet) :: Index
   
   # figure out which neighbor has the minimum slope from the current head location
   row, col = tuplefrom(rivulet.path[rivulet.head_idx])
-  min_nbr = (min_by(sim.neighbors) do nbr  # typeof(nbr) == (Index, Float64)
+  nbrs = sim.neighbors[rand(1:length(sim.neighbors))]  # choose random permutation of neighbors so as not to introduce bias
+  min_nbr = (min_by(nbrs) do nbr  # typeof(nbr) == (Index, Float64)
 
     # the neighbor location is the first element of
     # the tuple and the relative distance the second

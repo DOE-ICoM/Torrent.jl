@@ -58,15 +58,31 @@ To use Torrent you will first need to add it to your Julia environment. To do th
 add https://github.com/DOE-ICoM/Torrent.jl.git
 ```
 
-This should pull the Torrent package into your local environment. You should then be able to import the Torrent package into your julia code. The main entry point is the `torrent` function, which takes only a single parameter, the name of a configuration file in JSON format.
+If you run into an access error, you may need to, first, ensure that you have your GitHub account setup so that it can be accessed via SSH and, second, ensure that Julia knows to use the CLI version of SSH. Once you've opened the REPL, but before switching to the package manager, you may need to enter:
 
 ```julia
+ENV["JULIA_PKG_USE_CLI_GIT"] = true
+```
+
+Once this is working, the `add` command should pull the Torrent package into your local environment. (Note, that if you later want to update to a newer version of Torrent, just go back to the package manager and 'update Torrent'.) You should now be able to import the Torrent package into your julia code. The main entry point is the `torrent` function. It takes only a single parameter, the name of a JSON-based configuration file.
+
+```julia
+# my_main_file.jl
+
 import Torrent
 
 filename = "/path/to/configuration_file.json"
 
 torrent(filename)
 ```
+
+Torrent is **multithreaded**. In order to make use of this feature, though, we need to let Julia know to launch multiple threads at run time. If running from the command line, julia can be launched, for example, with 8 threads using:
+
+```julia
+julia --threads 8 my_main_file.jl
+```
+
+If you're using VS Code, before running Torrent open the Settings (`Cmd ,`), search for `julia threads`, and set the corresponding value to the number of cores you have (or would like to use). Note that Julia does seem to have a bug related to threading. We have had trouble before if this number is set too high where Torrent will simply hang in the middle of a run, with no further progress and no CPU load. If this happens, you might try reducing the number of threads it's launched with. This often solves the problem.
 
 The `torrent` function provides progress information during execution. Note that the ETA information can be particularly unreliable, especially during the simulation as the computation time depends on the number of rivulets, which can vary dramatically over the course of a run. A sample screenshot is shown below:
 
@@ -93,6 +109,7 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
   "output-directory": [String],
   "exclude-no-data-cells": [Bool],
   "num-realizations": [Int],
+  "interpolate-output": [Bool]
 
   "dem": {
     "filename": [String],
@@ -185,6 +202,8 @@ There are a number of parameters that define various aspects of the simulation t
 - `exclude-no-data-cells` flags whether or not to treat cells with the no data value as boundary cells, essentially terminating the rivulet when such a cell is reached. This can speed things up, for example, when running a coastal simulation if you set the no data value to 0 in the DEM raster and enable this flag. This would prevent the simulation from continuing out over the ocean. It does, however, mean rivulets will be terminated when they reach sea level, which can change the apparent flood dynamics a significant difference inland. Just beware. [`Bool`]
 
 - `num-realizations` determines how many realizations to automatically run using the same rivulet and simulation parameters. Since Torrent is stochastic, running multiple realizations to generate an ensemble of results can help quantify some aspects of model uncertainty. The output filenames include the realization number to prevent overwriting the output from prior realizations. Note that the set of flux sources are reloaded for every realization and new source distributions randomly generated for each. [`Int`]
+
+- `interpolate_output` selects whether the resulting flood depth and contamination files are interpolated onto a grid based at cell centers rather than edges. This results in output grids with one less row and column than the input DEM. It can be useful when comparing results to those of other overland flood models.
 
 ## Digital Elevation Model
 
