@@ -28,6 +28,7 @@
 module Torrent
 
 import Base.Threads.@threads
+import Base.iterate
 import Dates
 import JSON
 import Statistics
@@ -61,6 +62,7 @@ export open_multiband_geotiff
 export open_raster
 export save_geotiff
 export save_raster
+export crop_geotiff
 
 include("helpers.jl")
 include("grids.jl")

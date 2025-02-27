@@ -521,11 +521,19 @@ end
 
 
 """
-    open_multiband_geotiff(filename::String)::Vector{Grid}
+    open_multiband_geotiff(
+      filename::String,
+      silent::Bool=true;
+      units::String="degrees",
+      band_range::Union{UnitRange{Int},Nothing} = nothing)::Vector{Grid}
 
-    TBW
+Opens a multiband GeoTiff and returns a `Vector` of `Grid` instances.
 """
-function open_multiband_geotiff(filename::String, silent::Bool=true; units::String="degrees")::Vector{Grid}
+function open_multiband_geotiff(
+  filename::String,
+  silent::Bool=true;
+  units::String="degrees",
+  band_range::Union{UnitRange{Int},Nothing} = nothing) :: Vector{Grid}
 
   _, grids = time_computation("Loading multiband GeoTIFF from $(short_filename(filename)) ", silent) do
 
@@ -540,6 +548,9 @@ function open_multiband_geotiff(filename::String, silent::Bool=true; units::Stri
     yll = yul - nrows * dy
     cell_size_meters = dy * cell_size_conversion_factor(units, yll)
     
+    # user may only want a subset of the bands
+    rng = isnothing(band_range) ? (1:num_bands) : band_range
+
     gridset = [begin
       band = AG.getband(dataset, i)
       nodata = AG.getnodatavalue(band)
@@ -549,7 +560,7 @@ function open_multiband_geotiff(filename::String, silent::Bool=true; units::Stri
 
       reg = GeoRegistration(ncols, nrows, xll, yll, dy, nodata, cell_size_meters, AG.getproj(dataset), units)
       Grid(reg, trans)
-    end for i in 1:num_bands]
+    end for i in rng]
     gridset
   end
   grids
@@ -573,11 +584,11 @@ end
 
 
 """
-    interate(iter::BandIterator) :: Union{Tuple{Grid, Int}, Nothing}
+    iterate(iter::BandIterator) :: Union{Tuple{Grid, Int}, Nothing}
 
 Iterate over the bands in a multiband geotiff.
 """
-function interate(iter::BandIterator) :: Union{Tuple{Grid, Int}, Nothing}
+function Base.iterate(iter::BandIterator) :: Union{Tuple{Grid, Int}, Nothing}
   iterate(iter, 1)
 end
 
@@ -587,7 +598,7 @@ end
 
 Get the requested band from the iterator and return updated state, i.e., next band number.
 """
-function iterate(iter::BandIterator, band_num::Int) :: Union{Tuple{Grid, Int}, Nothing}
+function Base.iterate(iter::BandIterator, band_num::Int) :: Union{Tuple{Grid, Int}, Nothing}
   if band_num > AG.nraster(iter.dataset)
     nothing
   else
@@ -715,14 +726,21 @@ end
 
 
 """
-    save_geotiff(filename::String, grids::Vector{Grid}, interpolate_at_cell_centers::Bool)
+    save_geotiff(
+      filename::String, 
+      grids::Vector{Grid};
+      interpolate_at_cell_centers::Bool,
+      silent::Bool=true,
+      alt_proj_string::String="",
+      sub_sample_by::Int = 1
+    )
 
 Save a multiband geotiff. 
 """
 function save_geotiff(
   filename::String, 
   grids::Vector{Grid};
-  interpolate_at_cell_centers::Bool,
+  interpolate_at_cell_centers::Bool=false,
   silent::Bool=true,
   alt_proj_string::String="",
   sub_sample_by::Int = 1
@@ -840,7 +858,8 @@ end
 """
   convert(idx::Index, from_registration::GeoRegistration, to_registration::GeoRegistration) :: Index
 
-  TBW
+Returns the `Index` a cell, `idx`, in the `from_registration` would be located at in
+the `to_registration`.
 """
 function convert(idx::Index, from_registration::GeoRegistration, to_registration::GeoRegistration) :: Index
   indexof(latlongof(idx.row, idx.col, from_registration), to_registration)
@@ -851,23 +870,41 @@ end
     rerasterize{T<:Real}(
       data::Array{T,2},
       from_registration::GeoRegistration,
-      to_registration::GeoRegistration) :: Array{T,2}
+      to_registration::GeoRegistration;
+      crop_only::Bool = false) :: Array{T,2}
 
 Currently assumes that the 'from' raster is bigger than the 'to' raster.
 """
 function rerasterize(
   data::Array{Float32,2},
   from_registration::GeoRegistration,
-  to_registration::GeoRegistration) :: Array{Float32,2}
+  to_registration::GeoRegistration;
+  crop_only::Bool = false) :: Array{Float32,2}
 
-  new_array = zeros(Float32, to_registration.nrows, to_registration.ncols)
-  for j in 1:to_registration.nrows
-    for i in 1:to_registration.ncols
-      idx = convert(Index(j,i), to_registration, from_registration)
-      new_array[j,i] = data[idx.row, idx.col]
+  # if we're just cropping, we can do that without any interpolation
+  if crop_only
+
+    idx1 = convert(Index(1,1), to_registration, from_registration)
+    idx2 = convert(Index(to_registration.nrows, to_registration.ncols), to_registration, from_registration)
+    
+    new_array = data[
+      idx1.row:idx2.row,
+      idx1.col:idx2.col
+    ]
+
+    return new_array
+
+  # otherwise we need to interpolate
+  else
+    new_array = zeros(Float32, to_registration.nrows, to_registration.ncols)
+    for j in 1:to_registration.nrows
+      for i in 1:to_registration.ncols
+        idx = convert(Index(j,i), to_registration, from_registration)
+        new_array[j,i] = data[idx.row, idx.col]
+      end
     end
+    return new_array
   end
-  new_array
 end
 
 
@@ -893,6 +930,75 @@ function smooth(raster_filename::String, radius::Int, output_filename::String)
   smoove = smooth(grid, radius)
   save_raster(output_filename, smoove, false)
 end
+
+
+
+
+"""
+    crop_geotiff(
+      raster_a::String,
+      raster_b::String,
+      output_filename::String;
+      crop_only::Bool = true,
+      raster_a_units::String = "degrees",
+      raster_b_units::String = "degrees"
+    )
+
+Crops the (potentially multiband) GeoTiff indicated by `raster_a` to the
+same bounds as `raster_b` (which can be a GeoTiff or Esri ASCII grid file
+and saves the result in a GeoTiff, `output_filename`. The flag, `crop_only`
+determines whether each band is simply cropped (with each cell retaining
+the same size as the original raster) or rerasterasterized to the same
+dimensions as `raster_b`.
+
+By default the units of both `raster_a` and `raster_b` are assumed to be
+'degrees', but this can be specified explicitly with the two corresponding
+keyword arguments, `raster_a_units` and `raster_b_units`. The other valid
+value is 'meters'.
+"""
+function crop_geotiff(
+  raster_a::String,
+  raster_b::String,
+  output_filename::String;
+  crop_only::Bool = true,
+  raster_a_units::String = "degrees",
+  raster_b_units::String = "degrees")
+
+  # open the geotiff to crop
+  band_iter = open_multiband_stream(raster_a, units=raster_a_units)  # false indicates whether it should be silent
+
+  # get the registration of the geotiff to crop to
+  crop_to_reg = open_raster(raster_b, units=raster_b_units).registration
+
+  # crop and/or rerasterize all of the bands
+  cropped_data = [begin
+    rerasterize(grid.data, grid.registration, crop_to_reg, crop_only = crop_only)
+  end for grid in band_iter]
+
+  # create a new GeoRegistration instance for the cropped geotiff
+  new_reg = if crop_only
+    GeoRegistration(
+      size(cropped_data[1], 2),
+      size(cropped_data[1], 1),
+      crop_to_reg.xll,
+      crop_to_reg.yll,
+      grids[1].registration.cell_size,
+      grids[1].registration.no_data_value,
+      grids[1].registration.cell_size_meters,
+      grids[1].registration.proj_string,
+      grids[1].registration.units
+    )
+  else
+    crop_to_reg
+  end
+
+  cropped = [Grid(new_reg,cropped_data[i]) for i in eachindex(cropped_data)]
+
+  # save the cropped grid
+  save_geotiff(output_filename, cropped, silent=false)
+
+end
+
 
 
 
