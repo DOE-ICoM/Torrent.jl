@@ -156,6 +156,9 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
   # simulation time
   total_save_time = 0.0
 
+  # support reporting a rough processing rate
+  prev_time = time()
+
   # track the number of new rivulets created
   num_rivulet_starts = 0
 
@@ -170,10 +173,18 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
   while sim_step < num_time_steps
 
     # every so often, let's print a status update for the user
-    # if mod(sim_step, 20) == 0
-    #   print("step: $(sim_step), rivulets: $(length(rivulets)), cumulative rivulets: $(rivulet_counter)\r")
-    # end
-    update!(prog, sim_step; showvalues = [("step", sim_step), ("rivulets", length(rivulets)), ("cumulative rivulets", rivulet_counter)])
+    # computing the rivulet processing rate
+    proc_rate = length(rivulets)/(time()-prev_time)
+    proc_rate_str = Printf.format(Printf.Format("%.1e"), proc_rate)
+
+    # and updating the status bar
+    update!(prog, sim_step; showvalues = [
+      ("step", sim_step),
+      ("rivulets", length(rivulets)),
+      ("cumulative rivulets", rivulet_counter),
+      ("processing rate (riv/sec)", proc_rate_str)
+    ])
+    prev_time = time()
 
     # if you only wanted to run a single thread, the single line below
     # would suffice to do what we needed on a Set of rivulets
