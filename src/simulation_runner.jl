@@ -140,6 +140,10 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
   # number of rivulets spawned so far
   rivulet_counter = 1
 
+  # initialize a table to hold a running tabulation of current and
+  # cumulative rivulet numbers, the associated volume, and related flux
+  flux_trace = Matrix{Float64}(undef, num_time_steps, 6)
+
   # initialize a grid to track peak flood depth over the course
   # of the simulation
   max_depth = zeros(Float32, size(sim.depth))
@@ -172,12 +176,15 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
   # through the requested number of time steps
   while sim_step < num_time_steps
 
-    # every so often, let's print a status update for the user
-    # computing the rivulet processing rate
+    # every so often, we'll update the run status for the user
+
+    # let's compute the rivulet processing rate; typically, the more
+    # rivulets the more copying that needs to be done of rivulet
+    # arrays, and the slower the processing rate
     proc_rate = length(rivulets)/(time()-prev_time)
     proc_rate_str = Printf.format(Printf.Format("%.1e"), proc_rate)
 
-    # and updating the status bar
+    # now we can update the status bar
     update!(prog, sim_step; showvalues = [
       ("step", sim_step),
       ("rivulets", length(rivulets)),
@@ -185,6 +192,15 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
       ("processing rate (riv/sec)", proc_rate_str)
     ])
     prev_time = time()
+
+    # and then save some flux information that we can report out at the
+    # end for the user
+    flux_trace[sim_step+1, 1] = length(rivulets)
+    flux_trace[sim_step+1, 2] = length(rivulets) * sim.rivulet_volume
+    flux_trace[sim_step+1, 3] = rivulet_counter
+    flux_trace[sim_step+1, 4] = rivulet_counter * sim.rivulet_volume
+    flux_trace[sim_step+1, 5] = num_rivulet_starts
+    flux_trace[sim_step+1, 6] = num_rivulet_starts * sim.rivulet_volume / sim.time_step
 
     # if you only wanted to run a single thread, the single line below
     # would suffice to do what we needed on a Set of rivulets
@@ -398,8 +414,15 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
     save_rivulet_tracks(sim, iteration)
   end
 
+  # save the rivulet and volume related time series
+  (flux_trace_save_time, _) = time_computation("Saving flux trace ", false) do 
+    save_csv(sim.output_directory * "flux-$iteration.csv", flux_trace,
+      ["Current Rivulets", "Current Volume", "Cumulative Rivulets", "Cumulative Volume", "New Rivulets", "Flux"]
+    )
+  end
+
   # update the total save time
-  total_save_time += save_time + rivulet_tracks_save_time
+  total_save_time += save_time + rivulet_tracks_save_time + flux_trace_save_time
 
   # return the total time spent saving results as the output
   # of the run function
