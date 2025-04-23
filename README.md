@@ -354,10 +354,10 @@ or `upper` and `lower` bounds (in which case a uniform distribution is assumed),
 {"lower": [Float], "upper": [Float]}
 ```
 
-Finally, to simulate a breach an initial reservoir volume, `reservoir-volume-initial`, and a depth/volume curve are needed. The initial volume can either be specified as a deterministic value or a distribution. The reservoir depth/volume curve, `reservoir-depth-curve`, can be specified in one of three ways:
-- `Float64`: If a floating point value is provided it is assumed that it represents the surface area of a reservoir with a simple rectangular bathymetry.
-- `Array`: Alternatively, a depth/volume curve can be approximated by an array of points, with each point represented by a `[volume, depth]` pair. For a given volume, the depth will be linearly interpolated between known points.
-- `String`: Finally, a filename can be supplied where a series of `[volume, depth]` locations is provided as the first two columns of a CSV file (it is assumed that there is no header row).
+Finally, to simulate a breach an initial reservoir volume, `reservoir-volume-initial` (in cubic meters), and a depth/volume curve are needed. The initial volume can either be specified as a deterministic value or a distribution. The reservoir depth/volume curve, `reservoir-depth-curve`, can be specified in one of three ways:
+- `Float64`: If a floating point value is provided it is assumed that it represents the surface area (in square meters) of a reservoir with a simple rectangular bathymetry.
+- `Array`: Alternatively, a depth/volume curve can be approximated by an array of points, with each point represented by a `[volume, depth]` pair. For a given volume (cubic meters), the depth (meters) will be linearly interpolated between known points.
+- `String`: Finally, a filename can be supplied where a series of `[volume, depth]` locations is provided as the first two columns of a CSV file (it is assumed that there is no header row). Here, again, the volume is assumed to be in cubic meters and the depth in meters.
 
 
 ## Manning Coefficient
