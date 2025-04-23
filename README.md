@@ -2,6 +2,14 @@
 ![Exceedance](assets/Exceedance-Figure.jpg)
 Probabilistic ensemble generation with Torrent.
 
+# What's New?!
+
+- ***Dam Breach Simulations***, April 23, 2025
+  - Added the ability to internally generate hydrographs corresponding to dam breaches directly within Torrent.
+  - Previously, this capability could be partially realized by externally generating a hydrograph and incoporating it as an NWM-style source.
+  - This required an external means of generating a deterministic hydrograph and couldn't readily caputure uncertainty in the breach conditions.
+  - Many of the parameters of a dam breach within Torrent can now either be set deterministically or stochastically, with support for both uniform and normal distributions. By setting `num-realizations` > 1 in the configuration file, a stochastic ensemble of simulation results will be automatically be generated that reflects the uncertainty in the breach conditions.
+
 
 # Introduction
 
