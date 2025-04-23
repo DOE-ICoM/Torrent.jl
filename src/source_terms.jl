@@ -852,6 +852,145 @@ function open_nwm_data(
 end
 
 
+
+"""
+    generate_dam_failure(config::Dict{String,Any}, registration::GeoRegistration) :: PrecipitationTimeSeries
+
+TBW
+"""
+function generate_dam_failure(config::Dict{String,Any}, registration::GeoRegistration) :: Tuple{Float64,Union{PrecipitationTimeSeries,Nothing}}
+
+  if haskey(config, "dam-failure")
+    time_computation("Generating dam failure hydrograph...\n ") do 
+
+      # parse configuration for dam failure parameters
+
+      latitude = config["dam-failure"]["latitude"]
+      longitude = config["dam-failure"]["longitude"]
+      index = indexof(latitude, longitude, registration)
+      if is_outside_boundary(index, registration)
+        error("Dam failure location specified lies outside of DEM boundary.")
+      end
+
+      breach_width_top = rand_value(parse_distribution(config["dam-failure"]["breach-width-top"]))
+      breach_width_bottom = rand_value(parse_distribution(config["dam-failure"]["breach-width-bottom"]))
+      reservoir_volume_initial = rand_value(parse_distribution(config["dam-failure"]["reservoir-volume-initial"]))
+      reservoir_depth_curve_info = config["dam-failure"]["reservoir-depth-curve"]
+      dam_height_initial = rand_value(parse_distribution(config["dam-failure"]["dam-height-initial"]))
+      dam_height_final = rand_value(parse_distribution(config["dam-failure"]["dam-height-final"]))
+      failure_period = rand_value(parse_distribution(config["dam-failure"]["failure-period"]))
+      time_step = config["time-step-seconds"]
+      num_steps = config["max-steps"]
+
+      println("debug: reservoir_volume_initial: $reservoir_volume_initial")
+
+      # parse the reservoir depth curve information
+
+      reservoir_curve_function = parse_reservoir_depth_curve(reservoir_depth_curve_info)
+
+      # generate the hydrograph, which will necessarily have one entry
+      # for each simulation time step
+
+      (fluxes, _) = hydrograph(
+        breach_width_top = breach_width_top,
+        breach_width_bottom = breach_width_bottom,
+        initial_reservoir_volume = reservoir_volume_initial,
+        reservoir_depth_curve = reservoir_curve_function,
+        initial_dam_height = dam_height_initial,
+        final_dam_height = dam_height_final,
+        failure_period = failure_period,
+        time_step = time_step,
+        num_steps = num_steps
+      )
+
+      # create precipitation periods for each step
+      events = DataStructures.Queue{PrecipitationPeriod}()
+      for i in 1:length(fluxes)
+        evt = PrecipitationPeriod(
+          [index],
+          fluxes[i],
+          (j) -> (j<i+1)
+        )
+        DataStructures.enqueue!(events, evt)
+      end
+      PrecipitationTimeSeries(events)
+    end
+  else
+    (0.0, nothing)
+  end
+
+end
+
+
+"""
+    parse_distribution(x)
+
+Parses a parameter value that may represent a distribution. If a
+`Float64` value is passed the value is assumed to represent a delta-
+function distribution centered at that value (i.e. to be deterministic).
+If a `Dict` is passed it is assumed to have to elements, either `mean`
+and `std` (in which case a normal distribution is returned); or `lower`
+and `upper` (in which case a uniform distribution is returned).
+"""
+function parse_distribution(x)
+  if typeof(x) == Float64
+    x
+  elseif typeof(x) == Dict{String,Any}
+    if haskey(x, "mean")
+      Distributions.Normal(x["mean"], x["std"])
+    elseif haskey(x, "lower")
+      Distributions.Uniform(x["lower"], x["upper"])
+    else
+      error("Distribution specification must include either mean/std or lower/upper bounds.")
+    end
+  else
+    error("Unexpected type parsing distribution-related parameter value.")
+  end
+end
+
+
+"""
+    rand_value(x)
+
+If `dist` is a distribution, returns a random value selected from that
+distribution. If `dist` is a `Float64`, the number is simply returned.
+"""
+function rand_value(dist)
+  if typeof(dist) == Float64
+    dist
+  else
+    Distributions.rand(dist,1)[1]
+  end
+end
+
+
+"""
+    parse_reservoir_depth_curve(curve_info)
+
+Parses the depth `curve_info` based on type and returns
+a function that maps reservoir volume to depth.  
+"""
+function parse_reservoir_depth_curve(curve_info)
+
+  if typeof(curve_info) == String
+    table = open_csv(Float64, curve_info)
+    curve = [table[i,:] for i in 1:size(table,1)]
+    reservoir_depth_curve(curve)
+  elseif typeof(curve_info) == Float64
+    reservoir_depth_curve(curve_info)
+  elseif typeof(curve_info) <: Vector
+    # the json parser treats the array of arrays as a Vector{Any}
+    # the following step is needed to explicitly convert to A
+    # Vector{Vector{Float64}}
+    vec = [Float64.(row) for row in curve_info]
+    reservoir_depth_curve(vec)
+  else
+    error("Unexpected type parsing 'reservoir-depth-curve', found $(typeof(curve_info))")
+  end
+
+end
+
+
 """
     open_bounding_flood_series(
       filename_pattern::String,

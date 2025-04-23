@@ -153,6 +153,16 @@ function Base.getindex(g::Grid, row::Int, col::Int)
 end
 
 
+"""
+    Base.Broadcast.broadcast(f::Function, grid::Grid)
+
+Broadcasts the function, `f`, over the elements of `Grid.data`
+and returns a new `Grid` instance.
+"""
+function Base.Broadcast.broadcast(f::Function, grid::Grid)
+  Grid(grid.registration, broadcast(f,grid.data))
+end
+
 
 """
     indexof(lat::Float64, lon::Float64, reg::GeoRegistration)
@@ -909,13 +919,36 @@ end
 
 
 """
-    smooth(grid::Grid, radius::Int) :: Grid
+    circular_kernel(radius)
 
-    TBW
+TBW
 """
-function smooth(grid::Grid, radius::Int) :: Grid
-  kern = fill(Float32(1.0/((2*radius+1.0)^2)), 2*radius+1, 2*radius+1)
-  smoothed = DSP.conv(grid.data, kern)[2*radius+1:grid.registration.nrows-2*radius-1, 2*radius+1:grid.registration.ncols-2*radius-1]
+function circular_kernel(radius)
+  size = 2 * radius + 1
+  kernel = zeros(size, size)
+  center = radius + 1
+  for i in 1:size
+      for j in 1:size
+          if (i - center)^2 + (j - center)^2 <= radius^2
+              kernel[i, j] = 1
+          end
+      end
+  end
+  return centered(kernel)
+end
+
+
+"""
+    smooth(grid::Grid, std_dev::Real)
+
+Smooths `grid` with a Gaussian kernel with `std_dev` width. Grid returned
+has same number of rows and columns as the original grid. Utilizes the
+`ImageFiltering` library under the hood. Returns a `Grid` instance. Note
+that the actual kernel extends a out a distance `l = 2σ` in each direction
+from the center of the kernel.
+"""
+function smooth(grid::Grid, std_dev::Real)
+  smoothed = imfilter(grid.data, Kernel.gaussian(std_dev))
   Grid(grid.registration, smoothed)
 end
 
@@ -923,15 +956,16 @@ end
 """
     smooth(raster_filename::String, radius::Int, output_filename::String)
 
-    TBW
+Smooths `raster_filename` with a Gaussian kernel `std_dev` cells wide. Grid returned
+has same number of rows and columns as the original grid. Utilizes the
+`ImageFiltering` library under the hood. The smoothed raster is saved to
+`output_filename`.
 """
-function smooth(raster_filename::String, radius::Int, output_filename::String)
+function smooth(raster_filename::String, std_dev::Real, output_filename::String)
   grid = open_raster(raster_filename)
-  smoove = smooth(grid, radius)
+  smoove = smooth(grid, std_dev)
   save_raster(output_filename, smoove, false)
 end
-
-
 
 
 """

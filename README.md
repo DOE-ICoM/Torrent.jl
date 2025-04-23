@@ -41,6 +41,7 @@ Torrent two inputs with a third optional input:
 Torrent provides a number of outputs that can be useful in characterizing or visualizing different aspects of flood or simulation dynamics. These include:
 
 - Periodic snapshots of flow depth along with the maximum depth observed in each cell. Filename patterns: `depth-n-t.tif` and `peak-depth-n.tif`;
+- Time traces of the current and cumulative rivulet numbers and associated volumes as well as a time trace of the flux. Filename pattern: `flux-n.csv`;
 - Periodic and peak characterizations of contaminant levels (if a contaminated area has been specified). Filename patterns: `contamination-n-t.tif`, `concentration-n-t.tif`, and `peak-contamination-n.tif`. [optional];
 - The geospatial distributions of the stochastically generated flux sources for each flux period . Filename pattern: [base precip filename]`-source-lat-longs-i.csv` [optional]; and
 - Temporal tracks of selected rivulets for the purpose of analysis or visualization. Filename pattern: `rivulet-tracks-n.csv` [optional].
@@ -150,6 +151,18 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
     "index-offset": [Int],
     "seconds-per-step": [Float],
     "inset-from-border": [Int]
+  },
+
+  "dam-failure": {
+    "latitude": [Float],
+    "longitude": [Float],
+    "breach-width-top": [Distribution],
+    "breach-width-bottom": [Distribution],
+    "reservoir-volume-initial": [Distribution],
+    "reservoir-depth-curve": [String | Float | Array],
+    "dam-height-initial": [Distribution],
+    "dam-height-final": [Distribution],
+    "failure-period": [Distribution]
   },
 
   "manning-coef": [Float | String],
@@ -285,7 +298,7 @@ Torrent also has an ability to utilize point source data as might be gleaned, fo
 
 ### Depth Grid Series as Boundary Conditions (File Series)
 
-Finally, fluxes may be described implicitly by a series of depth forecasts from a prior simulation. This allows one to setup nested simulations where, for example, the results from a low-resolution, wide-area forecast can serve as the boundary condition for a smaller, nested, much higher-resolution simulation. To determine the flux at the boundary, Manning's equation is used along with the local flow depth and water surface elevation slope to estimate the velocity. The component of the velocity perpendicular to the boundary is used to set the flux.
+Fluxes may be described implicitly by a series of depth forecasts from a prior simulation. This allows one to setup nested simulations where, for example, the results from a low-resolution, wide-area forecast can serve as the boundary condition for a smaller, nested, much higher-resolution simulation. To determine the flux at the boundary, Manning's equation is used along with the local flow depth and water surface elevation slope to estimate the velocity. The component of the velocity perpendicular to the boundary is used to set the flux.
 
 ```json
   "boundary-conditions-time-series": {
@@ -311,6 +324,40 @@ Finally, fluxes may be described implicitly by a series of depth forecasts from 
 - `index-offset`: The index number is used to compute when within the current simulation the flux boundary condition from the prior simulation is applicable. You might, however, want to start a simulation at a time corresponding to something other than the start time of the prior simulation. `index-offset` can be used to manage this case. For example, if you wanted to start this simulation at what would correspond to step 1,440 of the prior simulation, you could set both `min-index` and `index-offset` to 1,440. [`Int`]
 - `seconds-per-step` denotes the number of seconds per time step in the prior simulation. [`Float`]
 - `inset-from-border`: When a rivulet hits a border in the a Torrent simulation it is marked for eventual removal from the simulation and the position of the rivulet's head location stops evolving. As such, we don't want to create new rivulets representing the influx of material directly on the border. In fact, even if the local surface slope is generally away from the border, the local influx of material can push water back upstream and out of the domain. The boundary flux should, therefore, be seeded a few cells into the nested simulation domain. The units are grid cells of the *inner* DEM domain. A value of 10 may be a reasonable place to start. [`Int`]
+
+### Dam Failure
+
+Dam failures or breaches may also be simulated with Torrent (and integrated with other potential sources of flux). The location of a breach is specified by its `latitude` and `longitude` with each in the same units as the DEM registration. A breach is assumed to be trapazoidal in shape with the user able to independently specify top, `breach-width-top`, and bottom, `breach-width-bottom`, widths of a breach. Breach widths should be specified in meters and the top must be wider than the bottom.
+
+The breach is assumed to occur gradually over a duration, `failure-period`, given in seconds. During this failure period the effective height of the dam within the breach is reduced linearly from `dam-height-initial` to `dam-height-final` (both in meters). Currently the failure is initiated at the start of the simulation and after the `failure-period` the dam height is assumed to remain constant at `dam-height-final`.
+
+```json
+"dam-failure": {
+    "latitude": [Float],
+    "longitude": [Float],
+    "breach-width-top": [Distribution],
+    "breach-width-bottom": [Distribution],
+    "reservoir-volume-initial": [Distribution],
+    "reservoir-depth-curve": [String | Float | Array],
+    "dam-height-initial": [Distribution],
+    "dam-height-final": [Distribution],
+    "failure-period": [Distribution]
+  }
+```
+
+Many of the parameters may be characterized by a distribution. In the configuration file this should take the form of either a single float value or  an object. If a single float value is provided, it is assumed that that parameter value is deterministic. If an object is provided, the value of the associated parameter is generated stochastically. The object must contain either `mean` and `std` elements (in which case a normal distribution is assumed), e.g.:
+```json
+{"mean": [Float], "std": [Float]}
+```
+or `upper` and `lower` bounds (in which case a uniform distribution is assumed), e.g.:
+```json
+{"lower": [Float], "upper": [Float]}
+```
+
+Finally, to simulate a breach an initial reservoir volume, `reservoir-volume-initial`, and a depth/volume curve are needed. The initial volume can either be specified as a deterministic value or a distribution. The reservoir depth/volume curve, `reservoir-depth-curve`, can be specified in one of three ways:
+- `Float64`: If a floating point value is provided it is assumed that it represents the surface area of a reservoir with a simple rectangular bathymetry.
+- `Array`: Alternatively, a depth/volume curve can be approximated by an array of points, with each point represented by a `[volume, depth]` pair. For a given volume, the depth will be linearly interpolated between known points.
+- `String`: Finally, a filename can be supplied where a series of `[volume, depth]` locations is provided as the first two columns of a CSV file (it is assumed that there is no header row).
 
 
 ## Manning Coefficient

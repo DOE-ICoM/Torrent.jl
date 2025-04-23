@@ -37,13 +37,14 @@ import Printf
 import Random
 import ArchGDAL as AG
 import LinearAlgebra
-import Statistics
 import DSP
 import CSV
 import Tables
 import Combinatorics
+import Distributions
 
 using ProgressMeter
+using ImageFiltering
 
 # main entry point
 export torrent
@@ -63,10 +64,13 @@ export open_raster
 export save_geotiff
 export save_raster
 export crop_geotiff
+export smooth
+export broadcast
 
 include("helpers.jl")
 include("grids.jl")
-include("precipitation.jl")
+include("dam_break.jl")
+include("source_terms.jl")
 include("rivulets.jl")
 include("simulation_runner.jl")
 

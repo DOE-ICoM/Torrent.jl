@@ -73,11 +73,14 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   # load the precipitation data for the full simulation time.
   (timing_of_precip, precipitation) = read_precipitation(config, dem.registration)
 
+  # create sources based on a dam failure hydrograph
+  (timing_of_dam_failure, dam_failure) = generate_dam_failure(config, dem.registration)
+
   # load any surrounding flood data that should be used as a boundary condition
   (timing_of_bounding_flood, bounding_flood) = read_boundary_conditions(config, dem.registration, default_manning_coef)
 
   # create a list of sources where any flood boundary conditions are optional
-  source_series :: Vector{PrecipitationTimeSeries} = filter( x -> !isnothing(x), [precipitation, bounding_flood])
+  source_series :: Vector{PrecipitationTimeSeries} = filter( x -> !isnothing(x), [precipitation, bounding_flood, dam_failure])
 
   # create an instance of a contaminated area if defined in the configuration
   contaminated_area :: Union{Nothing,ContaminatedArea} = contamination(config)
@@ -108,7 +111,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   end
 
   # report timing info to stdout as well as saving to a file in the output directory
-  write_timing_info(config, timing_of_precip, timing_of_bounding_flood, time_spent_saving, timing_of_run, iteration)
+  write_timing_info(config, timing_of_precip, timing_of_bounding_flood, timing_of_dam_failure, time_spent_saving, timing_of_run, iteration)
 
 end  # function realization
 
@@ -348,17 +351,19 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
             nothing
           end
 
+          filename_index = Printf.@sprintf("%03d-%05d", iteration, sim_step)
+
           if strip(sim.dem.registration.proj_string) != "" 
-            save_geotiff(sim.output_directory*"depth-$iteration-$sim_step.tif", sim.depth, sim.dem.registration, sim.interpolate_output)
+            save_geotiff(sim.output_directory*"depth-$filename_index.tif", sim.depth, sim.dem.registration, sim.interpolate_output)
             if !isnothing(sim.contamination)
-              save_geotiff(sim.output_directory*"concentration-$iteration-$sim_step.tif", concentration, sim.dem.registration, sim.interpolate_output)
-              save_geotiff(sim.output_directory*"contamination-$iteration-$sim_step.tif", sim.contamination, sim.dem.registration, sim.interpolate_output)
+              save_geotiff(sim.output_directory*"concentration-$filename_index.tif", concentration, sim.dem.registration, sim.interpolate_output)
+              save_geotiff(sim.output_directory*"contamination-$filename_index.tif", sim.contamination, sim.dem.registration, sim.interpolate_output)
             end
           else
-            save_esri_asc_file(sim.output_directory*"depth-$iteration-$sim_step.asc", sim.depth, sim.dem.registration, sim.interpolate_output)
+            save_esri_asc_file(sim.output_directory*"depth-$filename_index.asc", sim.depth, sim.dem.registration, sim.interpolate_output)
             if !isnothing(sim.contamination)
-              save_esri_asc_file(sim.output_directory*"concentration-$iteration-$sim_step.asc", concentration, sim.dem.registration, sim.interpolate_output)
-              save_esri_asc_file(sim.output_directory*"contamination-$iteration-$sim_step.asc", sim.contamination, sim.dem.registration, sim.interpolate_output)
+              save_esri_asc_file(sim.output_directory*"concentration-$filename_index.asc", concentration, sim.dem.registration, sim.interpolate_output)
+              save_esri_asc_file(sim.output_directory*"contamination-$filename_index.asc", sim.contamination, sim.dem.registration, sim.interpolate_output)
             end
           end
         end        
@@ -384,6 +389,8 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
   finish!(prog)
 
+  padded_iteration = Printf.@sprintf("%03d", iteration)
+
   # save the final peak depth and contamination grids
   (save_time, _) = time_computation("Saving peak depth and contamination ", false) do 
 
@@ -395,16 +402,16 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
     end
 
     if strip(sim.dem.registration.proj_string) != "" 
-      save_geotiff(sim.output_directory * "peak-depth-$iteration.tif", max_depth, sim.dem.registration, sim.interpolate_output)
+      save_geotiff(sim.output_directory * "peak-depth-$padded_iteration.tif", max_depth, sim.dem.registration, sim.interpolate_output)
       if !isnothing(sim.contamination)
         # save_geotiff(sim.output_directory*"peak-concentration-$iteration.tif", max_concentration, sim.dem.registration, true)
-        save_geotiff(sim.output_directory*"peak-contamination-$iteration.tif", max_contamination, sim.dem.registration, sim.interpolate_output)
+        save_geotiff(sim.output_directory*"peak-contamination-$padded_iteration.tif", max_contamination, sim.dem.registration, sim.interpolate_output)
       end
     else
-      save_esri_asc_file(sim.output_directory * "peak-depth-$iteration.asc", max_depth, sim.dem.registration, sim.interpolate_output)
+      save_esri_asc_file(sim.output_directory * "peak-depth-$padded_iteration.asc", max_depth, sim.dem.registration, sim.interpolate_output)
       if !isnothing(sim.contamination)
         # save_esri_asc_file(sim.output_directory*"peak-concentration-$iteration.asc", max_concentration, sim.dem.registration, true)
-        save_esri_asc_file(sim.output_directory*"peak-contamination-$iteration.asc", max_contamination, sim.dem.registration, sim.interpolate_output)
+        save_esri_asc_file(sim.output_directory*"peak-contamination-$padded_iteration.asc", max_contamination, sim.dem.registration, sim.interpolate_output)
       end
     end
   end
@@ -416,7 +423,7 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
   # save the rivulet and volume related time series
   (flux_trace_save_time, _) = time_computation("Saving flux trace ", false) do 
-    save_csv(sim.output_directory * "flux-$iteration.csv", flux_trace,
+    save_csv(sim.output_directory * "flux-$padded_iteration.csv", flux_trace,
       ["Current Rivulets", "Current Volume", "Cumulative Rivulets", "Cumulative Volume", "New Rivulets", "Flux"]
     )
   end
@@ -573,6 +580,7 @@ function write_timing_info(
   config::Dict{String,Any},
   timing_of_precip::Float64,
   timing_of_bounding_flood::Float64,
+  timing_of_dam_failure::Float64,
   time_spent_saving::Float64,
   timing_of_run::Float64,
   iteration::Int
@@ -581,8 +589,11 @@ function write_timing_info(
   # and report some timing information
   println("Time to analyze precipitation: $timing_of_precip")
   println("Time to analyze flood boundary conditions: $timing_of_bounding_flood")
+  println("Time to generate dam breach hydrograph: $timing_of_dam_failure")
   println("Time spent saving: $time_spent_saving")
   println("Algorithm run time: $(timing_of_run-time_spent_saving)")
+
+  timing_flux_sources = timing_of_precip + timing_of_bounding_flood + timing_of_dam_failure
 
   # we'll also save this to a JSON file so that it can easily be parsed
   # for analytical purposes
@@ -593,10 +604,10 @@ function write_timing_info(
     """
     {
       "configuration": $(JSON.json(config, 2)),
-      "timing-precipitation": $timing_of_precip,
+      "timing-flux-sources": $timing_flux_sources,
       "timing-output": $time_spent_saving,
       "timing-algorithm": $(timing_of_run - time_spent_saving),
-      "timing-runtime": $(timing_of_precip + timing_of_run)
+      "timing-runtime": $(timing_flux_sources + timing_of_run)
     }
     """
   open(timing_filename, "w") do io
