@@ -854,11 +854,17 @@ end
 
 
 """
-    generate_dam_failure(config::Dict{String,Any}, registration::GeoRegistration) :: PrecipitationTimeSeries
+    generate_dam_failure(
+      config::Dict{String,Any},
+      registration::GeoRegistration,
+      iteration::Int) :: Tuple{Float64,Union{PrecipitationTimeSeries,Nothing}}
 
 TBW
 """
-function generate_dam_failure(config::Dict{String,Any}, registration::GeoRegistration) :: Tuple{Float64,Union{PrecipitationTimeSeries,Nothing}}
+function generate_dam_failure(
+  config::Dict{String,Any},
+  registration::GeoRegistration,
+  iteration::Int) :: Tuple{Float64,Union{PrecipitationTimeSeries,Nothing}}
 
   if haskey(config, "dam-failure")
     time_computation("Generating dam failure hydrograph...\n ") do 
@@ -882,8 +888,6 @@ function generate_dam_failure(config::Dict{String,Any}, registration::GeoRegistr
       time_step = config["time-step-seconds"]
       num_steps = config["max-steps"]
 
-      println("debug: reservoir_volume_initial: $reservoir_volume_initial")
-
       # parse the reservoir depth curve information
 
       reservoir_curve_function = parse_reservoir_depth_curve(reservoir_depth_curve_info)
@@ -902,6 +906,11 @@ function generate_dam_failure(config::Dict{String,Any}, registration::GeoRegistr
         time_step = time_step,
         num_steps = num_steps
       )
+
+      # save fluxes to a CSV file in the output directory for reference
+      flux_table = [[i*time_step, fluxes[i]] for i in 1:length(fluxes)]
+      padded_iteration = Printf.@sprintf("%03d", iteration)
+      save_csv(config["output-directory"] * "dam-breach-flux-$padded_iteration.csv", flux_table)
 
       # create precipitation periods for each step
       events = DataStructures.Queue{PrecipitationPeriod}()

@@ -74,7 +74,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   (timing_of_precip, precipitation) = read_precipitation(config, dem.registration)
 
   # create sources based on a dam failure hydrograph
-  (timing_of_dam_failure, dam_failure) = generate_dam_failure(config, dem.registration)
+  (timing_of_dam_failure, dam_failure) = generate_dam_failure(config, dem.registration, iteration)
 
   # load any surrounding flood data that should be used as a boundary condition
   (timing_of_bounding_flood, bounding_flood) = read_boundary_conditions(config, dem.registration, default_manning_coef)
