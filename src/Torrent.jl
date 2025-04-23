@@ -42,6 +42,7 @@ import CSV
 import Tables
 import Combinatorics
 import Distributions
+import OffsetArrays
 
 using ProgressMeter
 using ImageFiltering
@@ -65,7 +66,9 @@ export save_geotiff
 export save_raster
 export crop_geotiff
 export smooth
+export circular_kernel
 export broadcast
+export surge_source_field
 
 include("helpers.jl")
 include("grids.jl")

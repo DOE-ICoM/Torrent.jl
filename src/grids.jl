@@ -154,6 +154,16 @@ end
 
 
 """
+    Base.setindex!(g::Grid, row::Int, col::Int)
+
+Overriding the `setindex!` function overrides the bracket opearator
+so that a grid element can be set as `grid[row,col] = value`.
+"""
+function Base.setindex!(g::Grid, value, row::Int, col::Int)
+  g.data[row,col] = value
+end
+
+"""
     Base.Broadcast.broadcast(f::Function, grid::Grid)
 
 Broadcasts the function, `f`, over the elements of `Grid.data`
@@ -954,6 +964,17 @@ end
 
 
 """
+    smooth(grid::Grid, kernel::OffsetArrays.OffsetMatrix{Float64, Matrix{Float64}})
+
+TBW
+"""
+function smooth(grid::Grid, kernel::OffsetArrays.OffsetMatrix{Float64, Matrix{Float64}})
+  smoothed = imfilter(grid.data, kernel)
+  Grid(grid.registration, smoothed)
+end 
+
+
+"""
     smooth(raster_filename::String, radius::Int, output_filename::String)
 
 Smooths `raster_filename` with a Gaussian kernel `std_dev` cells wide. Grid returned
@@ -1034,6 +1055,52 @@ function crop_geotiff(
 end
 
 
+"""
+    threshold(g::Grid; level::Float64=0.01, invert::Bool=false)
+
+Thresholds a grid at `level`, replacing all values at or above `level` with
+1.0 and all values below `level` with 0.0. By passing the keyword argument
+`invert` the resulting mask can be inverted.
+"""
+function threshold(g::Grid; level::Float64=0.01, invert::Bool=false)
+  broadcast(x -> ((invert ? x>=level : x<level) ? 0.0 : 1.0), g)
+end
+
+
+"""
+    surge_source_field(
+      dem::Grid,
+      smoothing_scale::Float64,
+      inset_from_smoothed_boundary::Float64,
+      width_of_source_line::Float64
+    ) :: Grid
+
+Takes a DEM as input and creates a smooth source line a distance
+`smoothing_scale - inset_from_smoothed_boundary` off the coast.
+Returns a `Grid` instance the same size as the DEM with cells in
+the source line set to 1.0 and all other cells set to 0.0.
+"""
+function surge_source_field(
+  dem::Grid,
+  smoothing_scale::Float64,
+  inset_from_smoothed_boundary::Float64,
+  width_of_source_line::Float64
+) :: Grid
+
+  # create masks we'll need to generate the source line
+  sea_mask = threshold(smooth(dem, smoothing_scale), invert=true)
+  base_source_line = threshold(smooth(sea_mask, inset_from_smoothed_boundary))
+  inset_source_line = threshold(smooth(sea_mask, inset_from_smoothed_boundary + width_of_source_line))
+
+  # then basically do a binary subtraction
+  for row in 1:dem.registration.nrows
+    for col in 1:dem.registration.ncols
+      inset_source_line[row,col] = inset_source_line[row,col] > 0.5 && base_source_line[row,col] < 0.5 ? 1.0 : 0.0
+    end
+  end
+
+  inset_source_line
+end
 
 
 # function fractal_dimension(grid::Grid, scales::Vector{Int}) :: Grid
