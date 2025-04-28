@@ -175,6 +175,89 @@ end
 
 
 """
+    combine_grids(op::Function, g1::Grid, g2::Grid)::Grid
+
+Perform the operation, `op`, on a cell by cell basis between grids `g1` and `g2`.
+The two grids should have the same registration. Returns a new grid instance.
+"""
+function combine_grids(op::Function, g1::Grid, g2::Grid)::Grid
+
+  if g1.registration.ncols != g2.registration.ncols || g1.registration.nrows != g2.registration.nrows
+    error("In order to add to Grid instances they must be of the same size.")
+  end
+  
+  d3 = similar(g1.data)
+  
+  for i in 1:g1.registration.ncols
+    for j in 1:g1.registration.nrows
+      d3[j,i] = op(g1.data[j,i], g2.data[j,i])
+    end
+  end
+
+  Grid(g1.registration, d3)
+end
+
+
+"""
+    Base.:+(g1::Grid, g2::Grid)
+
+Support for addition of two raster grids.
+"""
+function Base.:+(g1::Grid, g2::Grid)
+  combine_grids((+), g1, g2)
+end
+
+
+"""
+    Base.:*(g1::Grid, g2::Grid)
+
+Support for multiplication of two raster grids.
+"""
+function Base.:*(g1::Grid, g2::Grid)
+  combine_grids((*), g1, g2)
+end
+
+
+"""
+    Base.:*(g1::Grid, x::Real)
+
+Support for multiplication of a `Grid` by a scalar.
+"""
+function Base.:*(g1::Grid, x::Real)
+  Grid(g1.registration, broadcast(y->y*x, g1.data))
+end
+
+
+"""
+    Base.:*(x::Real, g1::Grid)
+
+Support for multiplication of a `Grid` by a scalar.
+"""
+function Base.:*(x::Real, g1::Grid)
+  *(g1, x)
+end
+
+"""
+    Base.:+(g1::Grid, x::Real)
+
+Support for addition of a `Grid` with a scalar.
+"""
+function Base.:+(g1::Grid, x::Real)
+  Grid(g1.registration, broadcast(y->y+x, g1.data))
+end
+
+
+"""
+    Base.:+(x::Real, g1::Grid)
+
+Support for addition of a `Grid` with a scalar.
+"""
+function Base.:+(x::Real, g1::Grid)
+  +(g1, x)
+end
+
+
+"""
     indexof(lat::Float64, lon::Float64, reg::GeoRegistration)
 
     Get the grid indices of a supplied latitude and longitude.
@@ -1054,53 +1137,6 @@ function crop_geotiff(
 
 end
 
-
-"""
-    threshold(g::Grid; level::Float64=0.01, invert::Bool=false)
-
-Thresholds a grid at `level`, replacing all values at or above `level` with
-1.0 and all values below `level` with 0.0. By passing the keyword argument
-`invert` the resulting mask can be inverted.
-"""
-function threshold(g::Grid; level::Float64=0.01, invert::Bool=false)
-  broadcast(x -> ((invert ? x>=level : x<level) ? 0.0 : 1.0), g)
-end
-
-
-"""
-    surge_source_field(
-      dem::Grid,
-      smoothing_scale::Float64,
-      inset_from_smoothed_boundary::Float64,
-      width_of_source_line::Float64
-    ) :: Grid
-
-Takes a DEM as input and creates a smooth source line a distance
-`smoothing_scale - inset_from_smoothed_boundary` off the coast.
-Returns a `Grid` instance the same size as the DEM with cells in
-the source line set to 1.0 and all other cells set to 0.0.
-"""
-function surge_source_field(
-  dem::Grid,
-  smoothing_scale::Float64,
-  inset_from_smoothed_boundary::Float64,
-  width_of_source_line::Float64
-) :: Grid
-
-  # create masks we'll need to generate the source line
-  sea_mask = threshold(smooth(dem, smoothing_scale), invert=true)
-  base_source_line = threshold(smooth(sea_mask, inset_from_smoothed_boundary))
-  inset_source_line = threshold(smooth(sea_mask, inset_from_smoothed_boundary + width_of_source_line))
-
-  # then basically do a binary subtraction
-  for row in 1:dem.registration.nrows
-    for col in 1:dem.registration.ncols
-      inset_source_line[row,col] = inset_source_line[row,col] > 0.5 && base_source_line[row,col] < 0.5 ? 1.0 : 0.0
-    end
-  end
-
-  inset_source_line
-end
 
 
 # function fractal_dimension(grid::Grid, scales::Vector{Int}) :: Grid

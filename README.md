@@ -173,6 +173,14 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
     "failure-period": [Distribution]
   },
 
+  "storm-surge": {
+    "peak-depth": [Distribution],
+    "peak-time-step": [Distribution],
+    "duration": [Distribution],
+    "coastal-smoothing-scale": [Float],
+    "inset-source-distance": [Float]
+  },
+
   "manning-coef": [Float | String],
 
   "contaminated-area": {

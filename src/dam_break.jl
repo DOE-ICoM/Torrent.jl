@@ -136,24 +136,12 @@ end
 """
     reservoir_depth_curve(curve_points::Vector{Vector{Float64}})
 
-User should specify a set of volume/depth curves with each row containing
+User should specify a set of volume/depth points with each row containing
 a `[volume, depth]` pair. Returns a function that when supplied with a
 volume will return a linearly-interpolated depth based on the provided curve.
 """
 function reservoir_depth_curve(curve_points::Vector{Vector{Float64}})
-
-  (volume) -> begin
-    upper_idx = findfirst(row -> volume<row[1], curve_points)
-    if upper_idx == 1
-      curve_points[1][2]
-    elseif isnothing(upper_idx)
-      curve_points[lastindex(curve_points)][2]
-    else
-      frac = (volume - curve_points[upper_idx-1][1]) / (curve_points[upper_idx][1] - curve_points[upper_idx-1][1])
-      curve_points[upper_idx-1][2] + frac * (curve_points[upper_idx][2] - curve_points[upper_idx-1][2])
-  
-    end
-  end
+  interpolate_points(curve_points)
 end
 
 

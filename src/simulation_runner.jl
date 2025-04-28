@@ -76,14 +76,20 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   # create sources based on a dam failure hydrograph
   (timing_of_dam_failure, dam_failure) = generate_dam_failure(config, dem.registration, iteration)
 
+  # create sources based on storm surge
+  (timing_of_storm_surge, (storm_surge, backstop_wall_mask)) = generate_storm_surge(config, dem, iteration)
+
   # load any surrounding flood data that should be used as a boundary condition
   (timing_of_bounding_flood, bounding_flood) = read_boundary_conditions(config, dem.registration, default_manning_coef)
 
   # create a list of sources where any flood boundary conditions are optional
-  source_series :: Vector{PrecipitationTimeSeries} = filter( x -> !isnothing(x), [precipitation, bounding_flood, dam_failure])
+  source_series :: Vector{PrecipitationTimeSeries} = filter( x -> !isnothing(x), [precipitation, bounding_flood, dam_failure, storm_surge])
 
   # create an instance of a contaminated area if defined in the configuration
   contaminated_area :: Union{Nothing,ContaminatedArea} = contamination(config)
+
+  # update dem to include storm_surge backstop wall if one was created
+  dem = isnothing(backstop_wall_mask) ? dem : (dem + 100.0 * backstop_wall_mask)
 
   # create a Simulation instance to store all of the relevant data
   sim = Simulation(

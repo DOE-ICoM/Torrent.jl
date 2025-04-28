@@ -66,13 +66,19 @@ export save_geotiff
 export save_raster
 export crop_geotiff
 export smooth
-export circular_kernel
 export broadcast
+export (+)
+export (*)
+
 export surge_source_field
+export surge_depth_volume_curve
+export interpolate_points
+
 
 include("helpers.jl")
 include("grids.jl")
 include("dam_break.jl")
+include("storm_surge.jl")
 include("source_terms.jl")
 include("rivulets.jl")
 include("simulation_runner.jl")

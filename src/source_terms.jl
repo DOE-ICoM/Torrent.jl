@@ -657,7 +657,8 @@ function open_multiband_precipitation(
       # simulation time steps) this source distribution is valid. note that
       # we're only really specifying an upper bound here since it's assumed
       # that the expiration of the prior distribution will set the lower bound.
-      p = create_period(num_sources,
+      p = create_period(
+        num_sources,
         precip.data .* mmPerHourToMetersPerSecond,
         from_registration,
         to_registration,
@@ -944,6 +945,8 @@ and `upper` (in which case a uniform distribution is returned).
 function parse_distribution(x)
   if typeof(x) == Float64
     x
+  elseif typeof(x) == Int
+    Float64(x)
   elseif typeof(x) == Dict{String,Any}
     if haskey(x, "mean")
       Distributions.Normal(x["mean"], x["std"])
@@ -1283,4 +1286,86 @@ function flux_per_unit_length(
   flux
 
 end
+
+
+
+"""
+    generate_storm_surge(
+      config::Dict{String,Any},
+      dem::Grid,
+      iteration::Int) :: Tuple{Float64, Tuple{Union{PrecipitationTimeSeries,Nothing}, Union{Grid,Nothing}}}
+      
+Returns a tuple that contains the computation time, and then a tuple of the 
+`PrecipitationTimeSeries`, and a `Grid` instance of a backstop wall mask.
+"""
+function generate_storm_surge(
+  config::Dict{String,Any},
+  dem::Grid,
+  iteration::Int) :: Tuple{Float64, Tuple{Union{PrecipitationTimeSeries,Nothing}, Union{Grid,Nothing}}}
+
+  # these parameters we'll set for the user at the moment, but if necessary
+  # we could allow these to be set from the config file as well
+  source_line_width = 2.0
+  backstop_distance = 8.0
+  assumed_height_of_backstop_mask = 100.0
+
+  if haskey(config, "storm-surge")
+    time_computation("Generating storm surge sources...\n") do 
+
+      # parse configuration for requisite parameters
+      peak_depth = rand_value(parse_distribution(config["storm-surge"]["peak-depth"]))
+      peak_time_step = rand_value(parse_distribution(config["storm-surge"]["peak-time-step"]))
+      duration = rand_value(parse_distribution(config["storm-surge"]["duration"]))
+      coastal_smoothing_scale = config["storm-surge"]["coastal-smoothing-scale"]
+      inset_source_distance = config["storm-surge"]["inset-source-distance"]
+      max_steps = config["max-steps"]
+      num_sources = config["num-sources"]
+      time_step = config["time-step-seconds"]
+
+      # create source fields and backstopped DEM mask
+      (source_field, backstop_wall_mask, backstop_mask) = surge_source_field(
+        dem,
+        coastal_smoothing_scale,
+        inset_source_distance,
+        source_line_width,
+        backstop_distance
+      )
+
+      # generate the temporal evolution of surge flux, that is a vector
+      # of pairs: [time step, flux]
+      surge_fluxes = temporal_surge_flux(
+        dem + (backstop_mask * assumed_height_of_backstop_mask),
+        peak_depth,
+        peak_time_step,
+        duration,
+        time_step,
+        max_steps
+      )
+    
+      # save fluxes to a CSV file in the output directory for reference
+      padded_iteration = Printf.@sprintf("%03d", iteration)
+      save_csv(config["output-directory"] * "storm-surge-flux-$padded_iteration.csv", surge_fluxes)
+
+      # create precipitation periods for each step
+      source_linear_indices = draw_indices_from_weighted_array(source_field.data, num_sources)
+      source_locations = map(to_table_indices(dem.registration.ncols), source_linear_indices)
+
+      events = DataStructures.Queue{PrecipitationPeriod}()
+      for i in 1:length(surge_fluxes)
+        evt = PrecipitationPeriod(
+          source_locations,
+          surge_fluxes[i][2],
+          (j) -> (j<surge_fluxes[i][1]+1)
+        )
+        DataStructures.enqueue!(events, evt)
+      end
+      (PrecipitationTimeSeries(events), backstop_wall_mask)
+    end
+  else
+    (0.0, (nothing, nothing))
+  end
+
+end
+
+
 

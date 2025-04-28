@@ -325,3 +325,24 @@ function slicematrix(A::AbstractMatrix)
   return [A[i, :] for i in 1:size(A,1)]
 end
 
+
+"""
+    interpolate_curve(curve_points::Vector{Vector{Float64}})
+
+Given a vector of `[x, y]` pairs, this returns a function that when supplied with
+a value of x will return a linearly-interpolated value of y based on the provided curve.
+"""
+function interpolate_points(curve_points::Vector{Vector{Float64}})
+
+  (x) -> begin
+    upper_idx = findfirst(row -> x<row[1], curve_points)
+    if upper_idx == 1
+      curve_points[1][2]
+    elseif isnothing(upper_idx)
+      curve_points[lastindex(curve_points)][2]
+    else
+      frac = (x - curve_points[upper_idx-1][1]) / (curve_points[upper_idx][1] - curve_points[upper_idx-1][1])
+      curve_points[upper_idx-1][2] + frac * (curve_points[upper_idx][2] - curve_points[upper_idx-1][2])
+    end
+  end
+end
