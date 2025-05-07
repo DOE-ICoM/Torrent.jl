@@ -1301,7 +1301,7 @@ Returns a tuple that contains the computation time, and then a tuple of the
 function generate_storm_surge(
   config::Dict{String,Any},
   dem::Grid,
-  iteration::Int) :: Tuple{Float64, Tuple{Union{PrecipitationTimeSeries,Nothing}, Union{Grid,Nothing}}}
+  iteration::Int) :: Tuple{Float64, Tuple{Union{PrecipitationTimeSeries,Nothing}, Union{Grid,Nothing}, Union{Int,Nothing}}}
 
   # these parameters we'll set for the user at the moment, but if necessary
   # we could allow these to be set from the config file as well
@@ -1359,13 +1359,19 @@ function generate_storm_surge(
         )
         DataStructures.enqueue!(events, evt)
       end
-      (PrecipitationTimeSeries(events), backstop_wall_mask)
+
+      # determine when the surge should be allowed to recede, that is
+      # when the backstop wall should be brought down
+      recede_at_step = peak_time_step + 2*duration
+
+      (PrecipitationTimeSeries(events), backstop_wall_mask, recede_at_step)
     end
   else
-    (0.0, (nothing, nothing))
+    (0.0, (nothing, nothing, nothing))
   end
 
 end
+
 
 
 

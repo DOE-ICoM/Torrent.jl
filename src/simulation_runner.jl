@@ -77,7 +77,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   (timing_of_dam_failure, dam_failure) = generate_dam_failure(config, dem.registration, iteration)
 
   # create sources based on storm surge
-  (timing_of_storm_surge, (storm_surge, backstop_wall_mask)) = generate_storm_surge(config, dem, iteration)
+  (timing_of_storm_surge, (storm_surge, backstop_wall_mask, recede_at_step)) = generate_storm_surge(config, dem, iteration)
 
   # load any surrounding flood data that should be used as a boundary condition
   (timing_of_bounding_flood, bounding_flood) = read_boundary_conditions(config, dem.registration, default_manning_coef)
@@ -89,7 +89,12 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   contaminated_area :: Union{Nothing,ContaminatedArea} = contamination(config)
 
   # update dem to include storm_surge backstop wall if one was created
-  dem = isnothing(backstop_wall_mask) ? dem : (dem + 100.0 * backstop_wall_mask)
+  dem_selector = create_dem_selector(
+    dem,
+    backstop_wall_mask,
+    recede_at_step
+  )
+  current_dem = dem_selector(0)
 
   # create a Simulation instance to store all of the relevant data
   sim = Simulation(
@@ -102,7 +107,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     config["rivulet-thickness"],
     config["time-step-seconds"],
     haskey(config, "manning-coef") ? config["manning-coef"] : default_manning_coef,
-    dem,
+    current_dem,
     haskey(config, "exclude-no-data-cells") ? config["exclude-no-data-cells"] : true,
     contaminated_area,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["num-rivulets"] : 0,
@@ -113,7 +118,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
 
   # run the simulation
   (timing_of_run, time_spent_saving) = time_computation("Running simulation...") do
-    run(sim, config["max-steps"], iteration)
+    run(sim, config["max-steps"], iteration, dem_selector)
   end
 
   # report timing info to stdout as well as saving to a file in the output directory
@@ -127,7 +132,7 @@ end  # function realization
 
 Run the simulation with the parameters specified by the Simulation instance.
 """
-function run(sim::Simulation, num_time_steps::Int, iteration::Int)
+function run(sim::Simulation, num_time_steps::Int, iteration::Int, dem_selector::Function)
 
   # variable to track the current simulation step
   sim_step = 0
@@ -185,8 +190,12 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
   # through the requested number of time steps
   while sim_step < num_time_steps
 
-    # every so often, we'll update the run status for the user
+    # to allow, for example, surge to recede, the DEM we use may change
+    # as a function of sim_step over the course of a simulation
+    current_dem = dem_selector(sim_step)
+    sim.dem = current_dem
 
+    # every so often, we'll update the run status for the user
     # let's compute the rivulet processing rate; typically, the more
     # rivulets the more copying that needs to be done of rivulet
     # arrays, and the slower the processing rate
@@ -642,4 +651,37 @@ function contamination(config::Dict{String,Any}) :: Union{Nothing,ContaminatedAr
   else
     nothing
   end
+end
+
+
+"""
+    create_dem_selector(
+      base_dem::Grid,
+      backstop_mask::Union{Grid,Nothing},
+      remove_backstop_step::Union{Int,Nothing},
+      wall_height::Float64 = 100.0
+    )
+
+Returns a function that can be used to select between a base DEM
+and a backstopped DEM depending on the simulation step, `sim_step`.
+"""
+function create_dem_selector(
+  base_dem::Grid,
+  backstop_mask::Union{Grid,Nothing},
+  remove_backstop_step::Union{Int,Nothing},
+  wall_height::Float64 = 100.0
+)
+
+  backstopped_dem = base_dem + wall_height * backstop_mask
+
+  (sim_step) -> begin
+    if isnothing(backstop_mask)
+      base_dem
+    elseif sim_step < remove_backstop_step
+      backstopped_dem
+    else
+      base_dem
+    end
+  end
+
 end
