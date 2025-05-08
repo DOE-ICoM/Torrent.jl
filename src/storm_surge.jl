@@ -172,7 +172,7 @@ function temporal_surge_flux(
   # compute temporal array of volumes necessary to fill DEM proposed level
   # this level is given by a gaussian curve centered at `peak_time_step` and
   # with width `surge_period_in_steps`
-  surge_volumes = [ f_depth_volume(peak_depth*exp(-(i-peak_time_step)^2/surge_period_in_steps^2)) for i in 1:max_steps]
+  surge_volumes = [ f_depth_volume(peak_depth*exp(-(i-peak_time_step)^2/(2.0*surge_period_in_steps^2))) for i in 1:max_steps]
 
   # return an array of time step versus requisite flux to achieve proposed volumes
   surge_fluxes = [ [Float64(i), i == 1 ? 0.0 : max((surge_volumes[i]-surge_volumes[i-1])/time_step, 0.0)] for i in 1:length(surge_volumes)]
