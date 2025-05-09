@@ -43,7 +43,7 @@ end
       inset_from_smoothed_boundary::Float64,
       width_of_source_line::Float64,
       backstop_distance::Float64
-    ) :: Grid
+    ) :: Tuple{Grid,Grid,Grid}
 
 Takes a DEM as input and creates a smooth source line a distance
 `smoothing_scale - inset_from_smoothed_boundary` off the coast.
@@ -141,7 +141,7 @@ end
 
 
 """
-    temporal_surge_flux(
+    temporal_surge_flux_old(
       backstopped_dem::Grid,
       peak_depth::Float64,
       peak_time_step::Float64,
@@ -157,7 +157,7 @@ surge with `peak_depth` center at `peak_time_step` and with a width of
 NOTE: At the moment it only returns positive fluxes. Negative fluxes are
 set to 0.0.
 """
-function temporal_surge_flux(
+function temporal_surge_flux_old(
   backstopped_dem::Grid,
   peak_depth::Float64,
   peak_time_step::Float64,
@@ -178,4 +178,90 @@ function temporal_surge_flux(
   surge_fluxes = [ [Float64(i), i == 1 ? 0.0 : max((surge_volumes[i]-surge_volumes[i-1])/time_step, 0.0)] for i in 1:length(surge_volumes)]
   surge_fluxes
 end
+
+
+"""
+    temporal_surge_flux(
+      backstop_wall_mask::Grid,
+      surge_line_width::Float64,
+      manning_coef::Float64,
+      peak_depth::Float64,
+      peak_time_step::Float64,
+      surge_period::Float64,
+      time_step_seconds::Float64,
+      max_steps::Int
+    )::Vector{Vector{Float64}}
+
+TBW
+"""
+function temporal_surge_flux(
+  backstop_wall_mask::Grid,
+  surge_line_width::Float64,
+  manning_coef::Float64,
+  peak_depth::Float64,
+  peak_time_step::Float64,
+  surge_period::Float64,
+  time_step_seconds::Float64,
+  max_steps::Int
+)::Vector{Vector{Float64}}
+
+  # note that in the calculation of the length of the surge source line, we
+  # divide by the line width plus 2. the plus 2 is for he effects of anti-aliasing
+  # when generating the source line which makes the line wider than the proposed
+  # value
+  cell_size_meters = backstop_wall_mask.registration.cell_size_meters
+  length_of_surge_source_line = sum(backstop_wall_mask.data) / (surge_line_width + 2.0)
+
+  # where t is in time steps rather than seconds
+  function phi(t::Float64)
+    exp_part = peak_depth * exp(-(t-peak_time_step)^2/(2*surge_period^2))
+    max(
+      (cell_size_meters^2 + cell_size_meters/manning_coef^2 * exp_part^(7/3)) * (peak_time_step-t)/surge_period^2 * exp_part,
+      0.0
+    ) / time_step_seconds
+  end
+
+  surge_fluxes = [ [Float64(i), phi(Float64(i)) * length_of_surge_source_line] for i in 1:max_steps]
+  surge_fluxes
+
+end
+
+
+
+function temporal_surge_flux_b(
+  backstop_wall_mask::Grid,
+  surge_line_width::Float64,
+  manning_coef::Float64,
+  peak_depth::Float64,
+  peak_time_step::Float64,
+  surge_period::Float64,
+  time_step_seconds::Float64,
+  max_steps::Int
+)::Vector{Vector{Float64}}
+
+  # note that in the calculation of the length of the surge source line, we
+  # divide by the line width plus 2. the plus 2 is for he effects of anti-aliasing
+  # when generating the source line which makes the line wider than the proposed
+  # value
+  cell_size_meters = backstop_wall_mask.registration.cell_size_meters
+  length_of_surge_source_line = sum(backstop_wall_mask.data) / (surge_line_width + 2.0)
+
+  # where t is in time steps rather than seconds
+  function phi(t::Float64)
+    exp_part = peak_depth * exp(-(t-peak_time_step)^2/(2*surge_period^2))
+    t_part = max( (peak_time_step-t)/surge_period^2, 0)
+    max(
+      cell_size_meters^2 * t_part * exp_part + 
+        cell_size_meters/manning_coef^(2/3) * t_part^(1/3) * exp_part^(16/9),
+      0.0
+    ) / time_step_seconds
+  end
+
+  surge_fluxes = [ [Float64(i), phi(Float64(i)) * length_of_surge_source_line] for i in 1:max_steps]
+  surge_fluxes
+
+end
+
+
+
 

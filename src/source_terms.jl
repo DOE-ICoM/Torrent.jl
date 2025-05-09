@@ -1306,8 +1306,10 @@ function generate_storm_surge(
   # these parameters we'll set for the user at the moment, but if necessary
   # we could allow these to be set from the config file as well
   source_line_width = 2.0
-  backstop_distance = 8.0
+  backstop_distance = 2.0
   assumed_height_of_backstop_mask = 100.0
+
+  temp_manning_coef = 0.04  # TODO
 
   if haskey(config, "storm-surge")
     time_computation("Generating storm surge sources...\n") do 
@@ -1333,8 +1335,10 @@ function generate_storm_surge(
 
       # generate the temporal evolution of surge flux, that is a vector
       # of pairs: [time step, flux]
-      surge_fluxes = temporal_surge_flux(
-        dem + (backstop_mask * assumed_height_of_backstop_mask),
+      surge_fluxes = temporal_surge_flux_b(
+        backstop_wall_mask,
+        source_line_width,
+        temp_manning_coef,
         peak_depth,
         peak_time_step,
         duration,
@@ -1342,6 +1346,9 @@ function generate_storm_surge(
         max_steps
       )
     
+      save_raster(config["output-directory"] * "surge-source-field.tif", source_field)
+      save_raster(config["output-directory"] * "backstop-wall-mask.tif", backstop_wall_mask)
+
       # save fluxes to a CSV file in the output directory for reference
       padded_iteration = Printf.@sprintf("%03d", iteration)
       save_csv(config["output-directory"] * "storm-surge-flux-$padded_iteration.csv", surge_fluxes)
@@ -1362,7 +1369,7 @@ function generate_storm_surge(
 
       # determine when the surge should be allowed to recede, that is
       # when the backstop wall should be brought down
-      recede_at_step = peak_time_step + 2*duration
+      recede_at_step = peak_time_step + duration
 
       (PrecipitationTimeSeries(events), backstop_wall_mask, recede_at_step)
     end
