@@ -631,11 +631,13 @@ function grid_cells_to_move(sim::Simulation, a::Index, ob::Union{Index,Nothing})
 
   # compute the distance in cells to the neighboring cell
   distance = sqrt((a.row - ob.row)^2 + (a.col - ob.col)^2)
+  distance = distance > 0.0 ? distance : 1.0
 
   # compute the surface elevations and slope
   sea = sim.dem[a] + array_read(sim.depth, a, sim.lk)
   seb = sim.dem[ob] + array_read(sim.depth, ob, sim.lk)
   s = -(sea - seb) / (sim.dem.registration.cell_size_meters * distance)
+  # s = -(sea - seb) / (sim.dem.registration.cell_size_meters)
   s = s < 0.0 ? 0.0 : s
 
   # velocity from manning's formula

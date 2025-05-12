@@ -690,7 +690,7 @@ function save_velocity_fields(sim::Simulation, iteration::Int, sim_step::Int)
 
         # println("debug:: depth: $(sim.depth[j,i]), distance: $distance, sea-seb: $(sea-seb), s: $s, sqrt(s): $(sqrt(s)), v: $v")
 
-        ux[j,i] = (i-low_idx.col)/distance * v
+        ux[j,i] = -(i-low_idx.col)/distance * v
         uy[j,i] = (j-low_idx.row)/distance * v
       end  # end if
     end  # end j
