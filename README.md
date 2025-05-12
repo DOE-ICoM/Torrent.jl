@@ -227,7 +227,7 @@ There are a number of parameters that define various aspects of the simulation t
 
 - `interpolate_output` selects whether the resulting flood depth and contamination files are interpolated onto a grid based at cell centers rather than edges. This results in output grids with one less row and column than the input DEM. It can be useful when comparing results to those of other overland flood models.
 
-- `save-velocity-fields` allows velocity field information to optionally be saved along with the depth snapshots. The two velocity components, $u_x$ and $u_y$, are written out in separate rasters with filenames beginning with **ux-** and **uy-**. Note that these additional calculations and saves will increase overall runtime and memory consumption.
+- `save-velocity-fields` selects whether velocity field information should optionally be saved along with depth snapshots. The estimated direction of the local velocity field is determined by the direction of the steepest gradient of decent of the surface water elevation. The magnitude of the velocity is estimated using Manning's formula. The two velocity components, $u_x$ and $u_y$, are written out in separate rasters with filenames beginning with **ux-** and **uy-**. Note that these additional calculations and saves will increase overall runtime and memory consumption.
 
 ## Digital Elevation Model
 
