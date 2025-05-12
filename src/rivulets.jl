@@ -169,6 +169,9 @@ mutable struct Simulation
   "Whether to interpolate outputs onto a center, rather than corner, based grid."
   interpolate_output :: Bool
 
+  "Whether to save snapshots of the velocity fields."
+  save_velocities :: Bool
+
 end
 
 
@@ -194,7 +197,8 @@ function Simulation(
   rivulet_tracking_total_num::Int,
   rivulet_tracking_only_contaminated::Bool,
   rivulet_track_every_time_steps::Int,
-  interpolate_output :: Bool
+  interpolate_output :: Bool,
+  save_velocities::Bool
 )
 
   # Depth grid initialized to zero everywhere.
@@ -241,7 +245,8 @@ function Simulation(
     rivulet_tracking_paths,
     0,
     rivulet_track_every_time_steps,
-    interpolate_output
+    interpolate_output,
+    save_velocities
   )
 
 end
@@ -435,10 +440,9 @@ end
     Determine the relative indices of the neighbor with the lowest slope from
     the current rivulet head location.
 """
-function lowest_surface_nbr_relative(sim::Simulation, rivulet::Rivulet) :: Index
+function lowest_surface_nbr_relative(sim::Simulation, row::Int, col::Int) :: Index
   
-  # figure out which neighbor has the minimum slope from the current head location
-  row, col = tuplefrom(rivulet.path[rivulet.head_idx])
+  # figure out which neighbor has the minimum slope from row, col
   nbrs = sim.neighbors[rand(1:length(sim.neighbors))]  # choose random permutation of neighbors so as not to introduce bias
   min_nbr = (min_by(nbrs) do nbr  # typeof(nbr) == (Index, Float64)
 
@@ -479,14 +483,38 @@ end
 
 
 """
-    lowest_surface_nbr_abs(rivulet::Rivulet) :: Index
+    lowest_surface_nbr_relative(sim::Simulation, rivulet::Rivulet)
 
-    Determine the absolute indices of the neighbor with the lowest slope from
-    the current rivulet head location.
+Determine the relative indices of the neighbor with the lowest slope from
+the current rivulet head location.
+"""
+function lowest_surface_nbr_relative(sim::Simulation, rivulet::Rivulet)
+  row, col = tuplefrom(rivulet.path[rivulet.head_idx])
+  lowest_surface_nbr_relative(sim, row, col)
+end
+
+
+"""
+    lowest_surface_nbr_abs(sim::Simulation, rivulet::Rivulet) :: Index
+
+Determine the absolute indices of the neighbor with the lowest slope from
+the current rivulet head location.
 """
 function lowest_surface_nbr_abs(sim::Simulation, rivulet::Rivulet) :: Index
   nbr = lowest_surface_nbr_relative(sim, rivulet)
   Index(head_location(rivulet).row + nbr.row, head_location(rivulet).col + nbr.col)
+end
+
+
+"""
+    lowest_surface_nbr_abs(sim::Simulation, row::Int, col::Int)::Index
+
+Determine the absolute indices of the neighbor with the lowest slope from
+the current location.
+"""
+function lowest_surface_nbr_abs(sim::Simulation, row::Int, col::Int)::Index
+  nbr = lowest_surface_nbr_relative(sim, row, col)
+  Index(row+ nbr.row, col + nbr.col)
 end
 
 
@@ -601,10 +629,13 @@ function grid_cells_to_move(sim::Simulation, a::Index, ob::Union{Index,Nothing})
   # if there's no second index supplied, just return 1
   isnothing(ob) && return (1, sim.dem.registration.cell_size_meters / sim.time_step)
 
+  # compute the distance in cells to the neighboring cell
+  distance = sqrt((a.row - ob.row)^2 + (a.col - ob.col)^2)
+
   # compute the surface elevations and slope
   sea = sim.dem[a] + array_read(sim.depth, a, sim.lk)
   seb = sim.dem[ob] + array_read(sim.depth, ob, sim.lk)
-  s = -(sea - seb) / sim.dem.registration.cell_size_meters
+  s = -(sea - seb) / (sim.dem.registration.cell_size_meters * distance)
   s = s < 0.0 ? 0.0 : s
 
   # velocity from manning's formula

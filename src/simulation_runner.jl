@@ -102,7 +102,8 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["num-rivulets"] : 0,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["only-contaminated"] : false,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["track-every-time-steps"] : -1,
-    haskey(config, "interpolate-output") ? config["interpolate-output"] : false
+    haskey(config, "interpolate-output") ? config["interpolate-output"] : false,
+    haskey(config, "save-velocity-fields") ? config["save-velocity-fields"] : false
   )
 
   # run the simulation
@@ -366,6 +367,11 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
               save_esri_asc_file(sim.output_directory*"contamination-$filename_index.asc", sim.contamination, sim.dem.registration, sim.interpolate_output)
             end
           end
+
+          if sim.save_velocities
+            save_velocity_fields(sim, iteration, sim_step)
+          end
+
         end        
 
         # and track the total time spent saving
@@ -637,3 +643,67 @@ function contamination(config::Dict{String,Any}) :: Union{Nothing,ContaminatedAr
     nothing
   end
 end
+
+
+
+"""
+    save_velocity_fields(sim::Simulation, iteration::Int, sim_step::Int)
+
+Saves a snapshot of the x and y components of the velocity field as
+estimated from Manning's equation.
+"""
+function save_velocity_fields(sim::Simulation, iteration::Int, sim_step::Int)
+
+  # grab dimensions of dem/depth fields
+  height = sim.dem.registration.nrows
+  width = sim.dem.registration.ncols
+
+  ux = zeros(Float32, height, width)
+  uy = zeros(Float32, height, width)
+
+  for i in 1:width
+    for j in 1:height
+
+      if sim.depth[j,i] == 0.0
+        continue
+      end
+
+      # find neighboring cell in direction of steepest descent
+      low_idx = lowest_surface_nbr_abs(sim, j, i)
+      distance = sqrt((low_idx.row-j)^2 + (low_idx.col-i)^2)
+      
+      # if we're in a depression, velocity is just zero
+      if distance == 0.0
+        ux[j,i] = 0.0
+        uy[j,i] = 0.0
+
+      # otherwise, estimate the velocity in the direction of
+      # steepest descent from manning's equation
+      else
+        # determine surface water elevation slope in this direction
+        sea = sim.dem[low_idx] + sim.depth[low_idx]
+        seb = sim.dem[j,i] + sim.depth[j,i]
+        s = -(sea - seb) / (sim.dem.registration.cell_size_meters * distance)
+        s = s < 0.0 ? 0.0 : s
+        # and use this and the depth to estimate velocity
+        v = sim.depth[j,i]^0.67 * sqrt(s) / manning(sim.manning_coef, j, i)
+
+        # println("debug:: depth: $(sim.depth[j,i]), distance: $distance, sea-seb: $(sea-seb), s: $s, sqrt(s): $(sqrt(s)), v: $v")
+
+        ux[j,i] = (i-low_idx.col)/distance * v
+        uy[j,i] = (j-low_idx.row)/distance * v
+      end  # end if
+    end  # end j
+  end  # end i
+
+  filename_index = Printf.@sprintf("%03d-%05d", iteration, sim_step)
+
+  if strip(sim.dem.registration.proj_string) != "" 
+    save_geotiff(sim.output_directory * "ux-$filename_index.tif", ux, sim.dem.registration, sim.interpolate_output)
+    save_geotiff(sim.output_directory * "uy-$filename_index.tif", uy, sim.dem.registration, sim.interpolate_output)
+  else
+    save_esri_asc_file(sim.output_directory * "ux-$filename_index.asc", ux, sim.dem.registration, sim.interpolate_output)
+    save_esri_asc_file(sim.output_directory * "uy-$filename_index.asc", uy, sim.dem.registration, sim.interpolate_output)
+  end
+end
+

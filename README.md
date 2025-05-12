@@ -118,7 +118,8 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
   "output-directory": [String],
   "exclude-no-data-cells": [Bool],
   "num-realizations": [Int],
-  "interpolate-output": [Bool]
+  "interpolate-output": [Bool],
+  "save-velocity-fields": [Bool],
 
   "dem": {
     "filename": [String],
