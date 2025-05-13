@@ -172,6 +172,9 @@ mutable struct Simulation
   "Whether to save snapshots of the velocity fields."
   save_velocities :: Bool
 
+  "The number of cells to smooth velocity fields by."
+  smooth_velocity_fields_by :: Float64
+
 end
 
 
@@ -198,7 +201,8 @@ function Simulation(
   rivulet_tracking_only_contaminated::Bool,
   rivulet_track_every_time_steps::Int,
   interpolate_output :: Bool,
-  save_velocities::Bool
+  save_velocities::Bool,
+  smooth_velocity_fields_by::Float64
 )
 
   # Depth grid initialized to zero everywhere.
@@ -246,7 +250,8 @@ function Simulation(
     0,
     rivulet_track_every_time_steps,
     interpolate_output,
-    save_velocities
+    save_velocities,
+    smooth_velocity_fields_by
   )
 
 end

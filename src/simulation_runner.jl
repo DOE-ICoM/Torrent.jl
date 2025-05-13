@@ -103,7 +103,8 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["only-contaminated"] : false,
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["track-every-time-steps"] : -1,
     haskey(config, "interpolate-output") ? config["interpolate-output"] : false,
-    haskey(config, "save-velocity-fields") ? config["save-velocity-fields"] : false
+    haskey(config, "save-velocity-fields") ? config["save-velocity-fields"] : false,
+    haskey(config, "smooth-velocity-fields-by") ? config["smooth-velocity-fields-by"] : 1.5
   )
 
   # run the simulation
@@ -370,7 +371,7 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
           # save velocity fields if the user has requested them
           if sim.save_velocities
-            save_velocity_fields(sim, iteration, sim_step, 1.5)
+            save_velocity_fields(sim, iteration, sim_step, sim.smooth_velocity_fields_by)
           end
 
         end        

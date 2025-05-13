@@ -120,6 +120,7 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
   "num-realizations": [Int],
   "interpolate-output": [Bool],
   "save-velocity-fields": [Bool],
+  "smooth-velocity-fields-by": [Float],
 
   "dem": {
     "filename": [String],
@@ -227,7 +228,7 @@ There are a number of parameters that define various aspects of the simulation t
 
 - `interpolate_output` selects whether the resulting flood depth and contamination files are interpolated onto a grid based at cell centers rather than edges. This results in output grids with one less row and column than the input DEM. It can be useful when comparing results to those of other overland flood models.
 
-- `save-velocity-fields` selects whether velocity field information should optionally be saved along with depth snapshots. The estimated direction of the local velocity field is determined by the direction of the steepest gradient of decent of the surface water elevation. The magnitude of the velocity is estimated using Manning's formula. The two velocity components, $u_x$ and $u_y$, are written out in separate rasters with filenames beginning with '**ux-**' and '**uy-**'. The scalar magnitude, $|u|$, is written in a file beginning with '**u-**'. Note that the thickness of the rivulets essentially quantizes the depth field and results in semi-quantized velocity fields and values as well. As such, to aid in visualization a 1.5-cell Gaussian smoothing filter is applied to the velocity fields before they're saved.
+- `save-velocity-fields` selects whether velocity field information should optionally be saved along with depth snapshots. The estimated direction of the local velocity field is determined by the direction of the steepest gradient of decent of the surface water elevation. The magnitude of the velocity is estimated using Manning's formula. The two velocity components, $u_x$ and $u_y$, are written out in separate rasters with filenames beginning with '**ux-**' and '**uy-**'. The scalar magnitude, $|u|$, is written in a file beginning with '**u-**'. Note that the rivulet thickness essentially quantizes the depth field and results in semi-quantized velocity fields and values as well. As such, to aid in visualization it's possible to smooth the velocity fields before they're saved. The amount of smoothing can be set with the `smooth-velocity-fields-by` parameter in the config file (in units of cells). By default it's set to 1.5 cells. If the value is set to 0.0 no smoothing is applied.
 
 ## Digital Elevation Model
 
