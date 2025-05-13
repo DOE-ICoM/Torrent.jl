@@ -941,15 +941,29 @@ end
 """
     smooth(grid::Grid, std_dev::Real)
 
-Smooths `grid` with a Gaussian kernel with `std_dev` width. Grid returned
+Smoothes `grid` with a Gaussian kernel with `std_dev` width. Grid returned
 has same number of rows and columns as the original grid. Utilizes the
 `ImageFiltering` library under the hood. Returns a `Grid` instance. Note
 that the actual kernel extends a out a distance `l = 2σ` in each direction
 from the center of the kernel.
 """
-function smooth(grid::Grid, std_dev::Real)
+function smooth(grid::Grid, std_dev::Real)::Grid
   smoothed = imfilter(grid.data, Kernel.gaussian(std_dev))
   Grid(grid.registration, smoothed)
+end
+
+
+"""
+    smooth(data::Matrix{Float32}, std_dev::Real)::Matrix{Float32}
+
+Smoothes `data` with a Gaussian kernel with `std_dev` width. `Matrix` returned
+has same number of rows and columns as the original grid. Utilizes the
+`ImageFiltering` library under the hood. Returns a `Matrix` instance. Note
+that the actual kernel extends a out a distance `l = 2σ` in each direction
+from the center of the kernel.
+"""
+function smooth(data::Matrix{Float32}, std_dev::Real)::Matrix{Float32}
+  imfilter(data, Kernel.gaussian(std_dev))
 end
 
 

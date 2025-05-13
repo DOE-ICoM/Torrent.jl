@@ -325,3 +325,51 @@ function slicematrix(A::AbstractMatrix)
   return [A[i, :] for i in 1:size(A,1)]
 end
 
+
+"""
+    masked!(data::Matrix{Float32},
+  mask::Matrix{Float32};
+  threshold::Real=0.0,
+  replacement_value::Real=0.0
+)
+
+TBW
+"""
+function masked!(
+  data::Matrix{Float32},
+  mask::Matrix{Float32};
+  threshold::Real=0.0,
+  replacement_value::Real=0.0
+)
+  for i in 1:size(data,2)
+    for j in 1:size(data,1)
+      data[j,i] = mask[j,i]>threshold ? data[j,i] : replacement_value
+    end
+  end
+  data
+end
+
+
+
+"""
+    raster_math(
+      data_a::Matrix{Float32},
+      data_b::Matrix{Float32},
+      f::Function
+    )
+
+TBW
+"""
+function raster_math(
+  data_a::Matrix{Float32},
+  data_b::Matrix{Float32},
+  f::Function
+)
+  result = similar(data_a)
+  for i in 1:size(data_a,2)
+    for j in 1:size(data_a,1)
+      result[j,i] = f(data_a[j,i], data_b[j,i])
+    end
+  end
+  result 
+end
