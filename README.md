@@ -2,7 +2,10 @@
 ![Exceedance](assets/Exceedance-Figure.jpg)
 Probabilistic ensemble generation with Torrent.
 
-# What's New?!
+# What's New??
+
+- ***Export of Velocity Fields***, May 13, 2025
+  - Estimates of the velocity-field (including both components and magnitude) can now be saved along with the depth snapshots using the `save-velocity-fields` flag in the configuration file.
 
 - ***Dam Breach Simulations***, April 23, 2025
   - Added the ability to internally generate hydrographs corresponding to dam breaches directly within Torrent.
