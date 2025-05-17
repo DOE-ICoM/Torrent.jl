@@ -51,7 +51,8 @@ Torrent two inputs with a third optional input:
 
 Torrent provides a number of outputs that can be useful in characterizing or visualizing different aspects of flood or simulation dynamics. These include:
 
-- Periodic snapshots of flow depth along with the maximum depth observed in each cell. Filename patterns: `depth-n-t.tif` and `peak-depth-n.tif`;
+- Periodic snapshots of flow depth along with the maximum depth observed in each cell. Filename patterns: `depth-n-t.tif` and `peak-depth-n.tif`, where `n` is the realization and `t` the simulation step;
+- Periodic snapshots the estimated flow velocity can also be exported. The vector components have filename pattern `ux-n-t.tif` and `uy-n-t.tif`, while the overall velocity magnitude filenames follow `u-n-t.tif`;
 - Time traces of the current and cumulative rivulet numbers and associated volumes as well as a time trace of the flux. Filename pattern: `flux-n.csv`;
 - Periodic and peak characterizations of contaminant levels (if a contaminated area has been specified). Filename patterns: `contamination-n-t.tif`, `concentration-n-t.tif`, and `peak-contamination-n.tif`. [optional];
 - The geospatial distributions of the stochastically generated flux sources for each flux period . Filename pattern: [base precip filename]`-source-lat-longs-i.csv` [optional]; and
