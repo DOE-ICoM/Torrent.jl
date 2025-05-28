@@ -652,13 +652,18 @@ function open_multiband_precipitation(
     # spatial rainfall rate.
     (_, evt) = time_computation("Creating source distribution for grid $(i)...") do 
 
+      # let's handle the potential for the precipitation data to include a no data value
+      precip_field = broadcast( x -> begin
+        x == precip.registration.no_data_value ? 0f0 : x
+      end, precip.data)
+
       # create a precipitation period corresponding to this source distribution
       # the third argument is the function that defines when (in terms of
       # simulation time steps) this source distribution is valid. note that
       # we're only really specifying an upper bound here since it's assumed
       # that the expiration of the prior distribution will set the lower bound.
       p = create_period(num_sources,
-        precip.data .* mmPerHourToMetersPerSecond,
+        precip_field .* mmPerHourToMetersPerSecond,
         from_registration,
         to_registration,
         false,
