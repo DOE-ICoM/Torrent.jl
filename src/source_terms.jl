@@ -654,7 +654,7 @@ function open_multiband_precipitation(
 
       # let's handle the potential for the precipitation data to include a no data value
       precip_field = broadcast( x -> begin
-        x == precip.registration.no_data_value ? 0f0 : x
+        isapprox(x, precip.registration.no_data_value) || isnan(x) ? 0f0 : x
       end, precip.data)
 
       # create a precipitation period corresponding to this source distribution
