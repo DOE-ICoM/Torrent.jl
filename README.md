@@ -384,7 +384,14 @@ Finally, to simulate a breach an initial reservoir volume, `reservoir-volume-ini
 "manning-coef": [Float] or [String]
 ```
 
-- `manning-coef` can be provided as either a `Float` or a `String` value. In the former case, Manning's coefficient is assumed to be homogeneous across the simulation domain. In the latter case, the `String` is taken to be the filename of a raster grid, the first band of which represents the potentially spatially varying value of the Manning coefficient. Any grid representing the manning coefficient should be in the same projection as the DEM.
+- `manning-coef` can be provided as either a `Float`, `String`, or distribution. In the first case, Manning's coefficient is assumed to be homogeneous across the simulation domain. In the second case, the `String` is taken to be the filename of a raster grid, the first band of which represents the potentially spatially varying value of the Manning coefficient. Any grid representing the manning coefficient should be in the same projection as the DEM. Finally, Manning's coefficient may be characterized by a distribution. If an object is provided, the value of the associated parameter is generated stochastically. The object must contain either `mean` and `std` elements (in which case a normal distribution is assumed), e.g.:
+```json
+{"mean": [Float], "std": [Float]}
+```
+or `upper` and `lower` bounds (in which case a uniform distribution is assumed), e.g.:
+```json
+{"lower": [Float], "upper": [Float]}
+```
 
 ## Contamination [ALPHA]
 

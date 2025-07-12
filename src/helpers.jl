@@ -373,3 +373,45 @@ function raster_math(
   end
   result 
 end
+
+
+"""
+    parse_distribution(x)
+
+Parses a parameter value that may represent a distribution. If a
+`Float64` value is passed the value is assumed to represent a delta-
+function distribution centered at that value (i.e. to be deterministic).
+If a `Dict` is passed it is assumed to have to elements, either `mean`
+and `std` (in which case a normal distribution is returned); or `lower`
+and `upper` (in which case a uniform distribution is returned).
+"""
+function parse_distribution(x)
+  if typeof(x) == Float64
+    x
+  elseif typeof(x) == Dict{String,Any}
+    if haskey(x, "mean")
+      Distributions.Normal(x["mean"], x["std"])
+    elseif haskey(x, "lower")
+      Distributions.Uniform(x["lower"], x["upper"])
+    else
+      error("Distribution specification must include either mean/std or lower/upper bounds.")
+    end
+  else
+    error("Unexpected type parsing distribution-related parameter value.")
+  end
+end
+
+
+"""
+    rand_value(x)
+
+If `dist` is a distribution, returns a random value selected from that
+distribution. If `dist` is a `Float64`, the number is simply returned.
+"""
+function rand_value(dist)
+  if typeof(dist) == Float64
+    dist
+  else
+    Distributions.rand(dist,1)[1]
+  end
+end

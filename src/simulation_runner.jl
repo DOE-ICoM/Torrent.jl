@@ -85,6 +85,17 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
   # create an instance of a contaminated area if defined in the configuration
   contaminated_area :: Union{Nothing,ContaminatedArea} = contamination(config)
 
+  # handle manning coefficient
+  manning_coef = if haskey(config, "manning-coef")
+    if typeof(config["manning-coef"]) == String
+      config["manning-coef"]
+    else
+      rand_value(parse_distribution(config["manning-coef"]))
+    end
+  else 
+    default_manning_coef
+  end
+
   # create a Simulation instance to store all of the relevant data
   sim = Simulation(
     source_series,
@@ -95,7 +106,7 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     config["rivulet-length"],
     config["rivulet-thickness"],
     config["time-step-seconds"],
-    haskey(config, "manning-coef") ? config["manning-coef"] : default_manning_coef,
+    manning_coef,
     dem,
     haskey(config, "exclude-no-data-cells") ? config["exclude-no-data-cells"] : true,
     contaminated_area,
