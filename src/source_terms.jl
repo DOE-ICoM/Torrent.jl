@@ -598,6 +598,7 @@ end
       num_sources::Int,
       time_step::Float64,
       interval::Float64,
+      scale_factor::Float64,
       write_distributions::Bool,
       output_directory::String,
       to_registration::GeoRegistration
@@ -612,6 +613,7 @@ function open_multiband_precipitation(
   num_sources::Int,
   time_step::Float64,
   interval::Float64,
+  scale_factor::Float64,
   write_distributions::Bool,
   output_directory::String,
   to_registration::GeoRegistration
@@ -656,6 +658,9 @@ function open_multiband_precipitation(
       precip_field = broadcast( x -> begin
         isapprox(x, precip.registration.no_data_value) || isnan(x) ? 0f0 : x
       end, precip.data)
+
+      # and let's apply the scale factor (this defaults to 1.0 if none is supplied)
+      precip_field = broadcast(x -> x * Float32(scale_factor), precip_field)
 
       # create a precipitation period corresponding to this source distribution
       # the third argument is the function that defines when (in terms of

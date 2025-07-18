@@ -289,7 +289,8 @@ Alternatively, precipitation distributions may be encapsulated in a single, mult
     "filename": [String],
     "min-index": [Int],
     "max-index": [Int],
-    "band-interval-seconds": [Float]
+    "band-interval-seconds": [Float],
+    "scale-factor": [Float]  # optional, defaults to 1.0
   }
 ```
 
@@ -297,6 +298,9 @@ Alternatively, precipitation distributions may be encapsulated in a single, mult
 - `min-index` provides the starting band index to use. [`Int`]
 - `max-index` provides the final band index to use. [`Int`]
 - `band-interval-seconds` defines the period of time that each distribution represents. If each band is an hourly snapshot of precipitation, for example, the value would be 3,600. [`Float`]
+- `scale-factor` specifies a uniform scalar to multiply each of the precipitation bands by.
+This provides an easy way to explore what-if scenarios, e.g., what if the precipitation rate had
+been twice as great as the forecast or observed distribution?
 
 ### Point Source Fluxes
 

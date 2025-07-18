@@ -327,6 +327,9 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
         end
 
         # get the location of the next rain source
+        if length(source_events[j].sources) == 0
+          continue
+        end
         location = source_events[j].sources[current_source_index_array[j]]
         current_source_index_array[j] = current_source_index_array[j] < length(source_events[j].sources) ? current_source_index_array[j]+1 : 1
 
@@ -528,6 +531,7 @@ function read_precipitation(
         config["num-sources"],
         config["time-step-seconds"],
         config["rain-multiband-geotiff"]["band-interval-seconds"],
+        (haskey(config["rain-multiband-geotiff"], "scale-factor") ? config["rain-multiband-geotiff"]["scale-factor"] : 1.0),
         config["write-precipitation-distributions"],
         config["output-directory"],
         registration
