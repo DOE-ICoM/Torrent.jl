@@ -259,13 +259,15 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
           num_rivulet_escapes += 1
         end
 
-      # just swallow the UndefRefError at this point
+      # just swallow the UndefRefError at this point but rethrow others
       catch err
         if isa(err, UndefRefError)
           # println("DEBUG: undefined found at $j of $(length(rivulets)) rivulets")
           rivulet_escaped[j] = true
           num_rivulet_escapes += 1
           num_escapes_by_error += 1
+        else
+          rethrow()
         end
       end
 
