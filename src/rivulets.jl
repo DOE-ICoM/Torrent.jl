@@ -356,7 +356,7 @@ function move_head!(sim::Simulation, rivulet::Rivulet, velocity::Float64, sim_st
     if mod(sim_step, sim.rivulets_tracking_every_time_steps) == 0
       i = findfirst(x -> x==rivulet.id, sim.rivulet_tracking_ids)
       if !isnothing(i)
-        DS.append!(sim.rivulet_tracks[i].track, (new_location, sim_step) )
+        DS.push!(sim.rivulet_tracks[i].track, (new_location, sim_step) )
         sim.rivulet_tracks[i].latest_step = sim_step
       end
     end
