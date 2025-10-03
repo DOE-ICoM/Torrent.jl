@@ -115,7 +115,8 @@ function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
     haskey(config, "rivulet-tracking") ? config["rivulet-tracking"]["track-every-time-steps"] : -1,
     haskey(config, "interpolate-output") ? config["interpolate-output"] : false,
     haskey(config, "save-velocity-fields") ? config["save-velocity-fields"] : false,
-    haskey(config, "smooth-velocity-fields-by") ? config["smooth-velocity-fields-by"] : 1.5
+    haskey(config, "smooth-velocity-fields-by") ? config["smooth-velocity-fields-by"] : 1.5,
+    haskey(config, "write-source-distributions") ? config["write-source-distributions"] : false
   )
 
   # run the simulation
@@ -261,7 +262,7 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
       # just swallow the UndefRefError at this point but rethrow others
       catch err
-        if isa(err, UndefRefError)
+        if isa(err, MethodError)
           # println("DEBUG: undefined found at $j of $(length(rivulets)) rivulets")
           rivulet_escaped[j] = true
           num_rivulet_escapes += 1
@@ -304,7 +305,7 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
     # rivulet array. its length is the number of rivulets holding over from
     # the prior time step (those that didn't leave the simulation area) plus
     # the number of new rivulet starts 
-    new_rivulet_array = Array{Rivulet}(undef, length(rivulets) - num_rivulet_escapes + num_rivulet_starts)
+    new_rivulet_array = Array{Union{Rivulet,Nothing}}(nothing, length(rivulets) - num_rivulet_escapes + num_rivulet_starts)
 
     # first copy the existing rivulets that didn't escape to this new array
     count = 1
@@ -346,6 +347,32 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
       # note number of new rivulets for this event in the total so far
       flux_sources_so_far += num_rivulet_starts_by_event[j]
+
+    end
+
+    # if the user has requested, we can write the source distribution out to files.
+    # this can be handy for debugging purposes or generating illustrations
+    if sim.write_source_distributions &&
+      strip(sim.output_directory) != "" &&
+      sim_step > 0 &&
+      mod(sim_step, sim.write_depth_every) == 0
+
+      # get newly generated rivulet head locations
+      try
+        lat_longs = map( filter(!isnothing, new_rivulet_array[count:end]) ) do rivulet
+          latlongof(rivulet.path[rivulet.head_idx], sim.dem.registration)
+        end
+
+        # and save as a CSV file
+        if length(lat_longs) > 0
+          filename_index = Printf.@sprintf("%03d-%05d", iteration, sim_step)
+          save_csv(sim.output_directory * "source-lat-longs-$filename_index.csv", lat_longs, ["latitude", "longitude"])
+        end
+
+      catch
+        println("count: $count\nnew_rivulet_array: $new_rivulet_array")
+        rethrow()
+      end
 
     end
 
@@ -511,8 +538,6 @@ function read_precipitation(
         config["num-sources"],
         config["time-step-seconds"],
         config["rain-time-series"]["file-interval-seconds"],
-        config["write-precipitation-distributions"],
-        config["output-directory"],
         registration
       )
     elseif haskey(config, "rain-nwm")
@@ -534,8 +559,6 @@ function read_precipitation(
         config["time-step-seconds"],
         config["rain-multiband-geotiff"]["band-interval-seconds"],
         (haskey(config["rain-multiband-geotiff"], "scale-factor") ? config["rain-multiband-geotiff"]["scale-factor"] : 1.0),
-        config["write-precipitation-distributions"],
-        config["output-directory"],
         registration
       )
     else
@@ -575,8 +598,6 @@ function read_boundary_conditions(
         config["boundary-conditions-time-series"]["dem"]["units"],
         config["num-sources"],
         config["boundary-conditions-time-series"]["inset-from-border"],
-        config["write-precipitation-distributions"],
-        config["output-directory"],
         registration,
         default_manning_coef
       )

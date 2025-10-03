@@ -175,6 +175,9 @@ mutable struct Simulation
   "The number of cells to smooth velocity fields by."
   smooth_velocity_fields_by :: Float64
 
+  "Whether to right distributions of source locations at the same time steps as the depth snapshots."
+  write_source_distributions :: Bool
+
 end
 
 
@@ -202,7 +205,8 @@ function Simulation(
   rivulet_track_every_time_steps::Int,
   interpolate_output :: Bool,
   save_velocities::Bool,
-  smooth_velocity_fields_by::Float64
+  smooth_velocity_fields_by::Float64,
+  write_source_distributions::Bool
 )
 
   # Depth grid initialized to zero everywhere.
@@ -251,7 +255,8 @@ function Simulation(
     rivulet_track_every_time_steps,
     interpolate_output,
     save_velocities,
-    smooth_velocity_fields_by
+    smooth_velocity_fields_by,
+    write_source_distributions
   )
 
 end

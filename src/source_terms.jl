@@ -493,8 +493,6 @@ function open_precipitation_series(
   num_sources::Int,
   time_step::Float64,
   interval::Float64,
-  write_distributions::Bool,
-  output_directory::String,
   to_registration::GeoRegistration
 ) :: PrecipitationTimeSeries
 
@@ -550,25 +548,6 @@ function open_precipitation_series(
 
     end
 
-    # if the user has requested, we can write the source locations out to files
-    # this can be handy for debugging purposes or generating illustrations
-    if write_distributions && strip(output_directory) != ""
-
-      # convert the 2d grid indices to lat/longs
-      lat_longs = map((src)->latlongof(src, to_registration), evt.sources)
-
-      # construct a filename for the sources based on the precipitation grid
-      # filename, but with -source-lat-longs.csv appended
-      storm_filename = Printf.format(Printf.Format(filename_pattern), i)
-      file_idx = findlast('/', storm_filename)
-      base_filename = storm_filename[file_idx+1:end]
-      ext_idx = findlast('.', base_filename)
-      root_filename = base_filename[1:ext_idx-1]
-
-      # and save as a CSV file
-      save_csv(output_directory * root_filename * "-source-lat-longs.csv", lat_longs, ["latitude", "longitude"])
-    end
-
     # add the new precipitation period event to the queue
     DataStructures.enqueue!(events, evt)
 
@@ -614,8 +593,6 @@ function open_multiband_precipitation(
   time_step::Float64,
   interval::Float64,
   scale_factor::Float64,
-  write_distributions::Bool,
-  output_directory::String,
   to_registration::GeoRegistration
 ) :: PrecipitationTimeSeries
 
@@ -681,24 +658,6 @@ function open_multiband_precipitation(
 
     # update progress bar status.
     update!(prog, i-lower; showvalues = [("band", i), ("sources", length(evt.sources)), ("flux", evt.total_flux)])
-
-    # if the user has requested, we can write the source locations out to files
-    # this can be handy for debugging purposes or generating illustrations
-    if write_distributions && strip(output_directory) != ""
-
-      # convert the 2d grid indices to lat/longs
-      lat_longs = map((src)->latlongof(src, to_registration), evt.sources)
-
-      # construct a filename for the sources based on the precipitation grid
-      # filename, but with -source-lat-longs.csv appended
-      file_idx = findlast('/', filename)
-      base_filename = filename[file_idx+1:end]
-      ext_idx = findlast('.', base_filename)
-      root_filename = base_filename[1:ext_idx-1]
-
-      # and save as a CSV file
-      save_csv(output_directory * root_filename * "-source-lat-longs-$(i).csv", lat_longs, ["latitude", "longitude"])
-    end
 
     # add the new precipitation period event to the queue
     DataStructures.enqueue!(events, evt)
@@ -1001,8 +960,6 @@ function open_bounding_flood_series(
   surrounding_dem_units::String,
   num_sources::Int,
   inset_from_border::Int,
-  write_distributions::Bool,
-  output_directory::String,
   inner_registration::GeoRegistration,
   manning_coef::Float64
 ) :: PrecipitationTimeSeries
@@ -1060,26 +1017,6 @@ function open_bounding_flood_series(
       # print(" sources=$(length(p.sources)), flux=$(p.total_flux), valid till step=$((i+index_step-index_offset) * Int(seconds_per_step/time_step_seconds))")
       p
       
-    end
-
-    # if the user has requested, we can write the source locations out to files
-    # this can be handy for debugging purposes or generating illustrations
-    if write_distributions && strip(output_directory) != ""
-
-      # convert the 2d grid indices to lat/longs
-      lat_longs = map((src)->latlongof(src, inner_registration), evt.sources)
-
-      # construct a filename for the sources based on the precipitation grid
-      # filename, but with -source-lat-longs.csv appended
-      storm_filename = Printf.format(Printf.Format(filename_pattern), i)
-      file_idx = findlast('/', storm_filename)
-      base_filename = storm_filename[file_idx+1:end]
-      ext_idx = findlast('.', base_filename)
-      root_filename = base_filename[1:ext_idx-1]
-
-      # and save as a CSV file
-      save_csv(output_directory * root_filename * "-source-lat-longs.csv", lat_longs, ["latitude", "longitude"])
-
     end
 
     # add the new precipitation period event to the queue
