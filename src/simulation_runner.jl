@@ -350,32 +350,6 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
     end
 
-    # if the user has requested, we can write the source distribution out to files.
-    # this can be handy for debugging purposes or generating illustrations
-    if sim.write_source_distributions &&
-      strip(sim.output_directory) != "" &&
-      sim_step > 0 &&
-      mod(sim_step, sim.write_depth_every) == 0
-
-      # get newly generated rivulet head locations
-      try
-        lat_longs = map( filter(!isnothing, new_rivulet_array[count:end]) ) do rivulet
-          latlongof(rivulet.path[rivulet.head_idx], sim.dem.registration)
-        end
-
-        # and save as a CSV file
-        if length(lat_longs) > 0
-          filename_index = Printf.@sprintf("%03d-%05d", iteration, sim_step)
-          save_csv(sim.output_directory * "source-lat-longs-$filename_index.csv", lat_longs, ["latitude", "longitude"])
-        end
-
-      catch
-        println("count: $count\nnew_rivulet_array: $new_rivulet_array")
-        rethrow()
-      end
-
-    end
-
     # finally we can update the rivulets reference to point to the new array
     # note that the single threaded version in Julia and multithreaded version
     # in scala use Set containers to avoid copying arrays, but multithreading
@@ -417,7 +391,21 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
             save_velocity_fields(sim, iteration, sim_step, sim.smooth_velocity_fields_by)
           end
 
-        end        
+          # may want to write out the distribution of rivulet sources, actually
+          # the most recent set of rivulet new start locations
+          if sim.write_source_distributions
+
+            # get newly generated rivulet head locations
+            lat_longs = map( filter(!isnothing, new_rivulet_array[count:end]) ) do rivulet
+              latlongof(rivulet.path[rivulet.head_idx], sim.dem.registration)
+            end
+
+            # and save as a CSV file
+            if length(lat_longs) > 0
+              save_csv(sim.output_directory * "source-lat-longs-$filename_index.csv", lat_longs, ["latitude", "longitude"])
+            end
+          end
+        end     
 
         # and track the total time spent saving
         total_save_time += save_time

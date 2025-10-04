@@ -132,7 +132,7 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
   },
 
   "num-sources": [Int],
-  "write-precipitation-distributions": [Bool],
+  "write-source-distributions": [Bool],
 
   "rain-time-series": {
     "filename-pattern": [String],
