@@ -36,7 +36,7 @@ function torrent(config_filename::String)
 
   # open and parse the configuration file
   config_io = JSON.open(config_filename)
-  config = JSON.parse(config_io)
+  config = Dict(JSON.parse(config_io))
 
   # open the base Digital Elevation Model
   println();
