@@ -702,6 +702,20 @@ function open_multiband_precipitation(
   finish!(prog)
   println("Multiband summary: nonzero bands=$(nonzero_bands)/$(upper - lower + 1), total_flux=$(total_flux_sum) m^3/s across all bands")
 
+  # make sure we've found some precipitation otherwise it might
+  # indicate an error with the precipitation file's georegistration.
+  if total_flux_sum == 0.0
+    printstyled("""
+      WARNING: A total flux of 0.0 was found in the precipitation grid
+      when cropping to the DEM. This can result from georegistration
+      issues when reading some GeoTIFFs (an issue with how the lat/lon
+      of the upper-left corner is specified). You might try re-exporting
+      the GeoTIFF from QGIS with the same resolution and bounding area
+      as this will often fix the issue. Also, ensure that the raster
+      is in an unprojected CRS (e.g., EPSG 4269).
+    """; color=198)
+  end
+
   # we'll also want to create a default event that can be used if the simulation
   # time extends beyond the precipitation periods we have defined. currently the
   # default is to have no precipitation.
