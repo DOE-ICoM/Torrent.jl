@@ -607,15 +607,35 @@ function open_multiband_precipitation(
 
   # read precipitation grids from multiband geotiff
   iter = open_multiband_stream(filename)
+  total_bands = length(iter)
+  println("Opening multiband precipitation: $(short_filename(filename)); bands=$total_bands, min_index=$min_index, max_index=$max_index")
+
+  # quick sanity checks
+  if total_bands <= 0
+    printstyled("WARNING: No bands found in multiband GeoTIFF $(short_filename(filename)). Using no-precipitation default.\n"; color=208)
+    default_event = create_period(num_sources, zeros(Float32, height, width), from_registration, to_registration, false, true, (j)->true)
+    DataStructures.enqueue!(events, default_event)
+    return PrecipitationTimeSeries(events)
+  end
 
   # precipitation rate raster files are expected to be numbered
   # sequentially so we just step through them in order here.
-  lower = if min_index>0 min_index else 1 end
-  upper = if (max_index>0 && max_index<=length(iter)) max_index else length(iter) end
+  lower = (min_index > 0) ? min_index : 1
+  upper = (max_index > 0) ? min(max_index, total_bands) : total_bands
+
+  if lower > upper
+    printstyled("WARNING: Requested band range [$lower, $upper] is empty for $(short_filename(filename)). Using no-precipitation default.\n"; color=208)
+    default_event = create_period(num_sources, zeros(Float32, height, width), from_registration, to_registration, false, true, (j)->true)
+    DataStructures.enqueue!(events, default_event)
+    return PrecipitationTimeSeries(events)
+  end
 
   # create a progress bar to chart precipitation load and generation
-  prog = Progress(upper-lower; desc="Multi-band Precip   ")
+  println("Processing precipitation bands [$lower, $upper]...")
+  prog = Progress(upper - lower + 1; desc="Multi-band Precip   ")
 
+  nonzero_bands = 0
+  total_flux_sum = 0.0f0
   for i in lower:upper
 
     # grab the grid of interest (we're not treating our poor iterator
@@ -629,15 +649,21 @@ function open_multiband_precipitation(
 
     # Create a new spatial distribution of source locations corresponding to the
     # spatial rainfall rate.
-    (_, evt) = time_computation("Creating source distribution for grid $(i)...") do 
+  (_, evt) = time_computation("Creating source distribution for grid $(i)...") do 
 
-      # let's handle the potential for the precipitation data to include a no data value
-      precip_field = broadcast( x -> begin
-        isapprox(x, precip.registration.no_data_value) || isnan(x) ? 0f0 : x
-      end, precip.data)
+      # handle potential no-data value; guard when no_data_value is missing/nothing
+      precip_field = begin
+        ndv = precip.registration.no_data_value
+        if ndv === nothing
+          broadcast(x -> (isnan(x) ? 0f0 : x), precip.data)
+        else
+          nd = Float32(ndv)
+          broadcast(x -> ((isapprox(x, nd)) || isnan(x)) ? 0f0 : x, precip.data)
+        end
+      end
 
-      # and let's apply the scale factor (this defaults to 1.0 if none is supplied)
-      precip_field = broadcast(x -> x * Float32(scale_factor), precip_field)
+  # and let's apply the scale factor (this defaults to 1.0 if none is supplied)
+  precip_field = broadcast(x -> x * Float32(scale_factor), precip_field)
 
       # create a precipitation period corresponding to this source distribution
       # the third argument is the function that defines when (in terms of
@@ -652,12 +678,15 @@ function open_multiband_precipitation(
         true,
         (j) -> (j < ((i-lower+1) * trunc(Int, interval/time_step)))
       )
-
       p
     end
 
     # update progress bar status.
-    update!(prog, i-lower; showvalues = [("band", i), ("sources", length(evt.sources)), ("flux", evt.total_flux)])
+    update!(prog, i - lower + 1; showvalues = [("band", i), ("sources", length(evt.sources)), ("flux", evt.total_flux)])
+    total_flux_sum += evt.total_flux
+    if evt.total_flux > 0
+      nonzero_bands += 1
+    end
 
     # add the new precipitation period event to the queue
     DataStructures.enqueue!(events, evt)
@@ -666,6 +695,7 @@ function open_multiband_precipitation(
 
   # finish progress bar
   finish!(prog)
+  println("Multiband summary: nonzero bands=$(nonzero_bands)/$(upper - lower + 1), total_flux=$(total_flux_sum) m^3/s across all bands")
 
   # we'll also want to create a default event that can be used if the simulation
   # time extends beyond the precipitation periods we have defined. currently the
@@ -673,12 +703,12 @@ function open_multiband_precipitation(
   default_event = create_period(num_sources, zeros(Float32, height, width), from_registration, to_registration, false, true, (j)->true)
   DataStructures.enqueue!(events, default_event)
   
+  println("Queued $(length(events)) precipitation periods (including default)")
   # once the default event is added, the set of precipitation events is wrapped
   # and returned as a PrecipitationTimeSeries.
   PrecipitationTimeSeries(events)
 
 end
-
 
 
 """
