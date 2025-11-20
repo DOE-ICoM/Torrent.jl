@@ -356,10 +356,15 @@ function stochastic_source_distribution_c(
   # finally, let's compute the total precipitation flux across the field
   cropped_area = cropped_registration.nrows * cropped_registration.ncols * cropped_registration.cell_size_meters^2
   to_area = to_registration.nrows * to_registration.ncols * to_registration.cell_size_meters^2
-  relative_area = to_area/cropped_area
-  # debug: print(" relative area=$(relative_area)")
-  scale_factor = is_horizontal ? cropped_registration.cell_size_meters : cropped_registration.cell_size_meters^2 * relative_area
-  total_flux = sum(cropped_flux_field) * scale_factor
+  
+  total_flux = if cropped_area > 0.0
+    relative_area = to_area/cropped_area
+    # debug: print(" relative area=$(relative_area)")
+    scale_factor = is_horizontal ? cropped_registration.cell_size_meters : cropped_registration.cell_size_meters^2 * relative_area
+    sum(cropped_flux_field) * scale_factor
+  else
+    0.0
+  end
 
   # convert indices to locations in target georegistration
   target_indices = convert_source_locations(indices_2d, cropped_registration, to_registration, true)
@@ -777,12 +782,17 @@ end
     Creates a cumulative tally of the elements of xs.
 """
 function cumulative(xs::Array{T}) where {T <: Real}
-  cumul = Array{T}(undef, length(xs))
-  cumul[1] = xs[1]
-  for i in 2:length(xs)
-    cumul[i] = cumul[i-1] + xs[i]
+  n = length(xs)
+  if n == 0
+    Array{T}(undef, 0)
+  else
+    cumul = Array{T}(undef, n)
+    cumul[1] = xs[1]
+    for i in 2:n
+      cumul[i] = cumul[i-1] + xs[i]
+    end
+    cumul
   end
-  cumul
 end
 
 
