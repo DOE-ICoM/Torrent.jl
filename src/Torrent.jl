@@ -66,6 +66,7 @@ export save_raster
 export crop_geotiff
 export smooth
 export broadcast
+export julia_main
 
 include("helpers.jl")
 include("grids.jl")

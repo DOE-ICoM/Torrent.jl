@@ -741,3 +741,24 @@ function save_velocity_fields(
   end
 end
 
+
+"""
+    julia_main()::Cint
+
+Main entry point for for a standalone version generated with `PackageCompiler`.
+"""
+function julia_main()::Cint
+  if length(ARGS) == 0
+    println("""
+      No arguments provided. Please specify the path to a Torrent
+      configuration file. You may optionally provide a second argument
+      specifying the backend to use. Must be one of: "cpu", "metal",
+      or "cuda".
+    """)
+  else
+    config_file = ARGS[1]
+    backend = length(ARGS) == 2 ? ARGS[2] : "cpu"
+    torrent(config_file, backend=backend)
+  end
+  return 0
+end
