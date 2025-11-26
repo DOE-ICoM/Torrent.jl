@@ -145,7 +145,8 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
     "filename": [String],
     "min-index": [Int],
     "max-index": [Int],
-    "band-interval-seconds": [Float]
+    "band-interval-seconds": [Float],
+    "scale-factor": [Float]
   },
 
   "rain-nwm": {
