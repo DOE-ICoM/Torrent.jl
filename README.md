@@ -439,6 +439,13 @@ Individual rivulets may also be tracked for analytical, debugging, or visualizat
 - `only-contaminated` constrains tracked rivulets to be only among those that have been contaminated. Setting this flag along with the specification of a `contaminated-area` provides an easy way to visualize flow at a particular location or time in the simulation. [`Bool`]
 - `track-every-time-steps` specifies how frequently to log tracked rivulet positions. A value of 1 would log positions at every time step. A value of 10 will log positions only every tenth time step. Note that a rivulet may make multiple hops within a single time step. [`Int`]
 
+# How to cite
+
+If you use Torrent in your work, please cite it as:
+
+Daniel, B. (2025). Torrent.jl: Computationally efficient flood simulation using Lagrangian rivulets [Computer software]. U.S. Department of Energy. Retrieved from https://github.com/DOE-ICoM/Torrent.jl
+
+
 # Disclaimer
 
 This material was prepared as an account of work sponsored by an agency

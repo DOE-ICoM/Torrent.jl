@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use Torrent.jl in your work, please cite it using the metadata below."
+title: "Torrent.jl: Computationally efficient flood simulation using Lagrangian rivulets"
+type: software
+authors:
+  - family-names: Daniel
+    given-names: Brent
+repository-code: "https://github.com/DOE-ICoM/Torrent.jl"
+license: "BSD 2-Clause License"      # or whatever your repo actually uses
+version: "1.0"
+date-released: "2024-03-08"
