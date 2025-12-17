@@ -949,6 +949,17 @@ function generate_dam_failure(
         )
         DataStructures.enqueue!(events, evt)
       end
+
+      # add a default, zero-flux period that is always valid so the
+      # queue never becomes empty, matching behavior of other
+      # precipitation/boundary-condition time series
+      default_evt = PrecipitationPeriod(
+        Index[],           # no sources
+        0.0f0,             # zero flux
+        (j) -> true        # valid for all remaining time steps
+      )
+      DataStructures.enqueue!(events, default_evt)
+
       PrecipitationTimeSeries(events)
     end
   else
