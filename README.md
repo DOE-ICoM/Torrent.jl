@@ -177,7 +177,9 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
     "reservoir-depth-curve": [String | Float | Array],
     "dam-height-initial": [Distribution],
     "dam-height-final": [Distribution],
-    "failure-period": [Distribution]
+    "failure-period": [Distribution],
+    "failure-start": [Distribution],
+    "failure-end": [Distribution]
   },
 
   "manning-coef": [Float | String],
@@ -350,7 +352,9 @@ Fluxes may be described implicitly by a series of depth forecasts from a prior s
 
 Dam failures or breaches may also be simulated with Torrent (and integrated with other potential sources of flux). The location of a breach is specified by its `latitude` and `longitude` with each in the same units as the DEM registration. A breach is assumed to be trapazoidal in shape with the user able to independently specify top, `breach-width-top`, and bottom, `breach-width-bottom`, widths of a breach. Breach widths should be specified in meters and the top must be wider than the bottom.
 
-The breach is assumed to occur gradually over a duration, `failure-period`, given in seconds. During this failure period the effective height of the dam within the breach is reduced linearly from `dam-height-initial` to `dam-height-final` (both in meters). Currently the failure is initiated at the start of the simulation and after the `failure-period` the dam height is assumed to remain constant at `dam-height-final`.
+The breach is assumed to occur gradually over a duration, `failure-period`, given in seconds. During this failure period the effective height of the dam within the breach is reduced linearly from `dam-height-initial` to `dam-height-final` (both in meters).
+
+`failure-start` and `failure-end` parameters (both in units of time steps) may be provided to control the timing of the failure. For example, a levee might not fail until partway through a storm event. This could be captured by a `failure-start` value sometime after the initiation of the simulation. It's also possible that crews might be able to restore the integrity of a levee before the simulation ends (e.g. by placing sand bags). This could be captured by setting a specific time for the `failure-end` parameter. By default a failure will occur at the start of the simulation and remain in place for its entire duration.
 
 ```json
 "dam-failure": {
@@ -362,11 +366,13 @@ The breach is assumed to occur gradually over a duration, `failure-period`, give
     "reservoir-depth-curve": [String | Float | Array],
     "dam-height-initial": [Distribution],
     "dam-height-final": [Distribution],
-    "failure-period": [Distribution]
+    "failure-period": [Distribution],
+    "failure-start": [Distribution],
+    "failure-end": [Distribution]
   }
 ```
 
-Many of the parameters may be characterized by a distribution. In the configuration file this should take the form of either a single float value or  an object. If a single float value is provided, it is assumed that that parameter value is deterministic. If an object is provided, the value of the associated parameter is generated stochastically. The object must contain either `mean` and `std` elements (in which case a normal distribution is assumed), e.g.:
+Many of the parameters may be characterized by a distribution. In the configuration file this should take the form of either a single float/int value or an object. If a single float/int value is provided, it is assumed that that parameter value is deterministic. If an object is provided, the value of the associated parameter is generated stochastically. The object must contain either `mean` and `std` elements (in which case a normal distribution is assumed), e.g.:
 ```json
 {"mean": [Float], "std": [Float]}
 ```

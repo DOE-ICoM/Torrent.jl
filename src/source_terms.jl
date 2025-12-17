@@ -910,6 +910,8 @@ function generate_dam_failure(
       failure_period = rand_value(parse_distribution(config["dam-failure"]["failure-period"]))
       time_step = config["time-step-seconds"]
       num_steps = config["max-steps"]
+      failure_start = haskey(config["dam-failure"], "failure-start") ? rand_value(parse_distribution(config["dam-failure"]["failure-start"])) : 1
+      failure_end = haskey(config["dam-failure"], "failure-end") ? rand_value(parse_distribution(config["dam-failure"]["failure-end"])) : num_steps
 
       # parse the reservoir depth curve information
 
@@ -926,6 +928,8 @@ function generate_dam_failure(
         initial_dam_height = dam_height_initial,
         final_dam_height = dam_height_final,
         failure_period = failure_period,
+        failure_start = failure_start,
+        failure_end = failure_end,
         time_step = time_step,
         num_steps = num_steps
       )

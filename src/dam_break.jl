@@ -64,6 +64,8 @@ function reservoir_volume(;
   initial_dam_height::Float64,
   final_dam_height::Float64,
   failure_period::Float64,  # seconds
+  failure_start::Int, # steps
+  failure_end::Int, # steps
   time_step::Float64,  # seconds
   num_steps::Int
 )
@@ -93,29 +95,46 @@ function reservoir_volume(;
 
   for i in 2:num_steps
 
-    # Compute the flux:
-    # if the reservoir depth is greater than the dam height we need to compute
-    # it using the weir equation; if it's less than the dam height, the flux
-    # is just zero.
-    flux = if reservoir_depth_curve(V[i-1]) > dam_height[i-1]
-      # flux through rectangular portion
-      (Cw * breach_width_bottom * (reservoir_depth_curve(V[i-1]) - dam_height[i-1])^(1.5)) + 
-      # flux through angled edges
-      2.0 * Cw * Z * (reservoir_depth_curve(V[i-1]) - dam_height[i-1])^2.5
+    if i <= failure_start || i > failure_end
+      # Outside of breach window: hold reservoir volume constant.
+      V[i] = V[i-1]
+
+      # Dam remains at initial height before breach and
+      # stays at its last value after breach ends.
+      if i <= failure_start
+        dam_height[i] = initial_dam_height
+      else
+        dam_height[i] = dam_height[i-1]
+      end
+
     else
-      0.0
+
+      # Within breach window: compute flux.
+      # If the reservoir depth is greater than the dam height we need to compute
+      # it using the weir equation; if it's less than the dam height, the flux
+      # is just zero.
+      flux = if reservoir_depth_curve(V[i-1]) > dam_height[i-1]
+        # flux through rectangular portion
+        (Cw * breach_width_bottom * (reservoir_depth_curve(V[i-1]) - dam_height[i-1])^(1.5)) + 
+        # flux through angled edges
+        2.0 * Cw * Z * (reservoir_depth_curve(V[i-1]) - dam_height[i-1])^2.5
+      else
+        0.0
+      end
+
+      # update the reservoir volume during breach
+      V[i] = V[i-1] - time_step * flux
+
+      # update the current dam height: linear reduction during failure_period
+      # starting at failure_start, then hold constant
+      if (i - failure_start) * time_step < failure_period
+        dam_height[i] = dam_height[i-1] + dz0
+      else
+        dam_height[i] = dam_height[i-1]
+      end
+
     end
 
-    # and update the reservoir volume
-    V[i] = V[i-1] - time_step * flux
-
-    # also update the current dam height
-    if i * time_step < failure_period
-      dam_height[i] = dam_height[i-1] + dz0
-    else
-      dam_height[i] = dam_height[i-1]
-    end
- 
   end
   return (V, dam_height)
 end
@@ -196,6 +215,8 @@ function hydrograph(;
   initial_dam_height::Float64,
   final_dam_height::Float64,
   failure_period::Float64,  # seconds
+  failure_start::Int, # steps
+  failure_end::Int, # steps
   time_step::Float64,  # seconds
   num_steps::Int
 )
@@ -209,6 +230,8 @@ function hydrograph(;
     initial_dam_height = initial_dam_height,
     final_dam_height = final_dam_height,
     failure_period = failure_period,
+    failure_start = failure_start,
+    failure_end = failure_end,
     time_step = time_step,
     num_steps = num_steps
   )

@@ -379,14 +379,19 @@ end
     parse_distribution(x)
 
 Parses a parameter value that may represent a distribution. If a
-`Float64` value is passed the value is assumed to represent a delta-
+`Float64` or `Int` value is passed the value is assumed to represent a delta-
 function distribution centered at that value (i.e. to be deterministic).
 If a `Dict` is passed it is assumed to have to elements, either `mean`
 and `std` (in which case a normal distribution is returned); or `lower`
 and `upper` (in which case a uniform distribution is returned).
 """
-function parse_distribution(x)
+function parse_distribution(y)
+
+  x = typeof(y) == JSON.Object{String, Any} ? y |> Dict{String,Any} : y
+
   if typeof(x) == Float64
+    x
+  elseif typeof(x) == Int
     x
   elseif typeof(x) == Dict{String,Any}
     if haskey(x, "mean")
@@ -397,7 +402,7 @@ function parse_distribution(x)
       error("Distribution specification must include either mean/std or lower/upper bounds.")
     end
   else
-    error("Unexpected type parsing distribution-related parameter value.")
+    error("Unexpected type, $(typeof(x)), parsing distribution-related parameter value.")
   end
 end
 
@@ -406,10 +411,12 @@ end
     rand_value(x)
 
 If `dist` is a distribution, returns a random value selected from that
-distribution. If `dist` is a `Float64`, the number is simply returned.
+distribution. If `dist` is a `Float64` or `Int`, the number is simply returned.
 """
 function rand_value(dist)
   if typeof(dist) == Float64
+    dist
+  elseif typeof(dist) == Int
     dist
   else
     Distributions.rand(dist,1)[1]
