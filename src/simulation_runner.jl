@@ -41,6 +41,16 @@ function torrent(config_filename::String)
   # open the base Digital Elevation Model
   println();
   dem = open_raster(config["dem"]["filename"], false; units=config["dem"]["units"]); println()
+  dem = if haskey(config["dem"], "enforce-sea-level") && config["dem"]["enforce-sea-level"]
+    broadcast((x -> x<0.0 ? 0.0 : x), dem)
+  else
+    dem_min = minimum(dem.data)
+    if dem_min < 0.0
+      printstyled("DEM minimum elevation is $dem_min. You may want to contemplate using 'enforce-sea-level' flag.\n"; color=39)
+    end
+    dem
+  end
+  
   grid_size_message = Printf.format(Printf.Format("Grid Resolution: %.1f meters ($(size(dem.data,1)) x $(size(dem.data,2)) cells)\n"), dem.registration.cell_size_meters)
   printstyled(grid_size_message; color=39)
 

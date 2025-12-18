@@ -128,7 +128,8 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
 
   "dem": {
     "filename": [String],
-    "units": [String]
+    "units": [String],
+    "enforce-sea-level": [Bool]
   },
 
   "num-sources": [Int],
@@ -244,7 +245,8 @@ Each simulation takes place in the context of the topography defined by a digita
 ```json
   "dem": {
     "filename": [String],
-    "units": [String]
+    "units": [String],
+    "enforce-sea-level": [Bool]
   }
 ```
 
@@ -252,6 +254,7 @@ Each simulation takes place in the context of the topography defined by a digita
 
 - `units` indicates whether the georegistration of the raster file is in `"degrees"` or `"meters"`. The type of units (along with, potentially, the latitude) is internally used to compute the breadth of a grid cell in meters. Raster cells are assumed to have the same horizontal and vertical dimension. The computed grid cell size is printed at the beginning of a run. [`String`]
 
+- `enforce-sea-level` replaces any values in the DEM that are less than 0.0 with 0.0.
 
 ## Source Flux Characterization
 
