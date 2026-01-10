@@ -24,6 +24,8 @@
 #    UNITED STATES DEPARTMENT OF ENERGY
 #         under Contract DE-AC05-76RL01830
 
+using Logging: @warn
+
 
 
 """
@@ -60,12 +62,149 @@ function torrent(config_filename::String)
 end
 
 
+const JSON_OBJECT_TYPE = JSON.Object{String,Any}
+
+function dict_like(obj)
+  if obj isa AbstractDict{String,Any}
+    obj
+  elseif typeof(obj) == JSON_OBJECT_TYPE
+    Dict{String,Any}(obj)
+  else
+    nothing
+  end
+end
+
+function get_nested_value(config::Dict{String,Any}, path::Vector{String})
+  current = config
+  for key in path
+    current_dict = dict_like(current)
+    if current_dict === nothing || !haskey(current_dict, key)
+      return (nothing, false)
+    end
+    current = current_dict[key]
+  end
+  (current, true)
+end
+
+function format_config_path(path::Vector{String})
+  "config" * join(["[\"$key\"]" for key in path])
+end
+
+is_string_value(value) = value isa String
+is_integer_value(value) = value isa Integer && !(value isa Bool)
+is_real_value(value) = value isa Real && !(value isa Bool)
+is_boolean_value(value) = value isa Bool
+is_number_value(value) = is_real_value(value)
+
+function is_distribution_value(value)
+  try
+    parse_distribution(value)
+    true
+  catch
+    false
+  end
+end
+
+function is_reservoir_depth_curve(value)
+  is_string_value(value) || is_real_value(value) || is_reservoir_depth_curve_vector(value)
+end
+
+function is_reservoir_depth_curve_vector(value)
+  if !(value isa AbstractVector)
+    return false
+  end
+  all(entry -> entry isa AbstractVector && all(is_number_value, entry), value)
+end
+
+const CONFIG_FIELD_VALIDATORS = [
+  (["dem","filename"], is_string_value, "string"),
+  (["dem","units"], is_string_value, "string"),
+  (["output-directory"], is_string_value, "string"),
+  (["save-every-steps"], is_integer_value, "integer"),
+  (["compute-max-every-steps"], is_integer_value, "integer"),
+  (["rivulet-length"], is_integer_value, "integer"),
+  (["rivulet-thickness"], is_real_value, "real number"),
+  (["time-step-seconds"], is_real_value, "real number"),
+  (["max-steps"], is_integer_value, "integer"),
+  (["num-realizations"], is_integer_value, "integer"),
+  (["num-sources"], is_integer_value, "integer"),
+  (["exclude-no-data-cells"], is_boolean_value, "boolean"),
+  (["interpolate-output"], is_boolean_value, "boolean"),
+  (["save-velocity-fields"], is_boolean_value, "boolean"),
+  (["smooth-velocity-fields-by"], is_real_value, "real number"),
+  (["write-source-distributions"], is_boolean_value, "boolean"),
+  (["rivulet-tracking","num-rivulets"], is_integer_value, "integer"),
+  (["rivulet-tracking","only-contaminated"], is_boolean_value, "boolean"),
+  (["rivulet-tracking","track-every-time-steps"], is_integer_value, "integer"),
+  (["manning-coef"], value -> is_string_value(value) || is_distribution_value(value), "string or distribution specification"),
+  (["rain-time-series","filename-pattern"], is_string_value, "string"),
+  (["rain-time-series","min-index"], is_integer_value, "integer"),
+  (["rain-time-series","max-index"], is_integer_value, "integer"),
+  (["rain-time-series","file-interval-seconds"], is_real_value, "real number"),
+  (["rain-nwm","filename"], is_string_value, "string"),
+  (["rain-nwm","flux-interval-seconds"], is_real_value, "real number"),
+  (["rain-multiband-geotiff","filename"], is_string_value, "string"),
+  (["rain-multiband-geotiff","min-index"], is_integer_value, "integer"),
+  (["rain-multiband-geotiff","max-index"], is_integer_value, "integer"),
+  (["rain-multiband-geotiff","band-interval-seconds"], is_real_value, "real number"),
+  (["rain-multiband-geotiff","scale-factor"], is_real_value, "real number"),
+  (["boundary-conditions-time-series","filename-pattern"], is_string_value, "string"),
+  (["boundary-conditions-time-series","min-index"], is_integer_value, "integer"),
+  (["boundary-conditions-time-series","max-index"], is_integer_value, "integer"),
+  (["boundary-conditions-time-series","index-step"], is_integer_value, "integer"),
+  (["boundary-conditions-time-series","index-offset"], is_integer_value, "integer"),
+  (["boundary-conditions-time-series","seconds-per-step"], is_real_value, "real number"),
+  (["boundary-conditions-time-series","dem","filename"], is_string_value, "string"),
+  (["boundary-conditions-time-series","dem","units"], is_string_value, "string"),
+  (["boundary-conditions-time-series","inset-from-border"], is_integer_value, "integer"),
+  (["contaminated-area","ll-latitude"], is_real_value, "real number"),
+  (["contaminated-area","ll-longitude"], is_real_value, "real number"),
+  (["contaminated-area","ur-latitude"], is_real_value, "real number"),
+  (["contaminated-area","ur-longitude"], is_real_value, "real number"),
+  (["contaminated-area","start-step"], is_integer_value, "integer"),
+  (["contaminated-area","end-step"], is_integer_value, "integer"),
+  (["contaminated-area","contamination-rate"], is_real_value, "real number"),
+  (["dam-failure","latitude"], is_real_value, "real number"),
+  (["dam-failure","longitude"], is_real_value, "real number"),
+  (["dam-failure","breach-width-top"], is_distribution_value, "distribution specification"),
+  (["dam-failure","breach-width-bottom"], is_distribution_value, "distribution specification"),
+  (["dam-failure","reservoir-volume-initial"], is_distribution_value, "distribution specification"),
+  (["dam-failure","reservoir-depth-curve"], is_reservoir_depth_curve, "path, number, or array of arrays"),
+  (["dam-failure","dam-height-initial"], is_distribution_value, "distribution specification"),
+  (["dam-failure","dam-height-final"], is_distribution_value, "distribution specification"),
+  (["dam-failure","failure-period"], is_distribution_value, "distribution specification"),
+  (["dam-failure","failure-start"], is_distribution_value, "distribution specification"),
+  (["dam-failure","failure-end"], is_distribution_value, "distribution specification")
+]
+
+function validate_config_types(config::Dict{String,Any})
+  mismatches = String[]
+  for (path, validator, expected) in CONFIG_FIELD_VALIDATORS
+    value, found = get_nested_value(config, path)
+    if !found
+      continue
+    end
+    if !validator(value)
+      push!(mismatches, "$(format_config_path(path)) expected $expected but got $(typeof(value)).")
+    end
+  end
+  if !isempty(mismatches)
+    for message in mismatches
+      @warn message
+    end
+    error("Configuration type validation failed with $(length(mismatches)) mismatch(es).")
+  end
+end
+
+
 """
     realization(config::Dict{String,Any}, dem::Grid, iteration::Int64)
 
     Performs a single realization of a Simulation.
 """
 function realization(config::Dict{String,Any}, dem::Grid, iteration::Int)
+
+  validate_config_types(config)
 
   # default manning coefficient to use if none is specified in the configuration file
   default_manning_coef = 0.04
