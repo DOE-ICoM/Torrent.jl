@@ -157,7 +157,7 @@ const CONFIG_FIELD_VALIDATORS = [
   (["rain-multiband-geotiff","min-index"], is_integer_value, "integer"),
   (["rain-multiband-geotiff","max-index"], is_integer_value, "integer"),
   (["rain-multiband-geotiff","band-interval-seconds"], is_real_value, "real number"),
-  (["rain-multiband-geotiff","scale-factor"], is_real_value, "real number"),
+  (["rain-multiband-geotiff","scale-factor"], value -> is_real_value(value) || is_distribution_value(value), "real number or distribution specification"),
   (["boundary-conditions-time-series","filename-pattern"], is_string_value, "string"),
   (["boundary-conditions-time-series","min-index"], is_integer_value, "integer"),
   (["boundary-conditions-time-series","max-index"], is_integer_value, "integer"),
@@ -688,6 +688,11 @@ function read_precipitation(
     elseif haskey(config, "rain-multiband-geotiff")
       lower = if haskey(config["rain-multiband-geotiff"], "min-index") config["rain-multiband-geotiff"]["min-index"] else -1 end
       upper = if haskey(config["rain-multiband-geotiff"], "max-index") config["rain-multiband-geotiff"]["max-index"] else -1 end
+      scale_factor = if haskey(config["rain-multiband-geotiff"], "scale-factor")
+        rand_value(parse_distribution(config["rain-multiband-geotiff"]["scale-factor"]))
+      else
+        1.0
+      end
       open_multiband_precipitation(
         config["rain-multiband-geotiff"]["filename"],
         lower,
@@ -695,7 +700,7 @@ function read_precipitation(
         config["num-sources"],
         config["time-step-seconds"],
         config["rain-multiband-geotiff"]["band-interval-seconds"],
-        (haskey(config["rain-multiband-geotiff"], "scale-factor") ? config["rain-multiband-geotiff"]["scale-factor"] : 1.0),
+        Float64(scale_factor),
         registration
       )
     else
