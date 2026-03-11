@@ -4,6 +4,9 @@ Probabilistic ensemble generation with Torrent.
 
 # What's New??
 
+- ***Precipitation Scaling***, March 11, 2026
+  - Precipitation described in a multiband geotiff can now be rescaled by either a floating point value (deterministic) or using a value stochastically generated from a distribution (random). The distribution can be either uniform or normal.
+
 - ***Export of Velocity Fields***, May 13, 2025
   - Estimates of the velocity-field (including both components and magnitude) can now be saved along with the depth snapshots using the `save-velocity-fields` flag in the configuration file.
 
