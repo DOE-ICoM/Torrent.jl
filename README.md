@@ -147,7 +147,7 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
     "min-index": [Int],
     "max-index": [Int],
     "band-interval-seconds": [Float],
-    "scale-factor": [Float]
+    "scale-factor": [Float | Distribution]
   },
 
   "rain-nwm": {
@@ -296,7 +296,7 @@ Alternatively, precipitation distributions may be encapsulated in a single, mult
     "min-index": [Int],
     "max-index": [Int],
     "band-interval-seconds": [Float],
-    "scale-factor": [Float]  # optional, defaults to 1.0
+    "scale-factor": [Float | Distribution]  # optional, defaults to 1.0
   }
 ```
 
@@ -306,7 +306,7 @@ Alternatively, precipitation distributions may be encapsulated in a single, mult
 - `band-interval-seconds` defines the period of time that each distribution represents. If each band is an hourly snapshot of precipitation, for example, the value would be 3,600. [`Float`]
 - `scale-factor` specifies a uniform scalar to multiply each of the precipitation bands by.
 This provides an easy way to explore what-if scenarios, e.g., what if the precipitation rate had
-been twice as great as the forecast or observed distribution?
+been twice as great as the forecast or observed distribution? May be specified as a single float value or as a distribution (see the dam failure section for distribution syntax). When specified as a distribution, a value is sampled once per realization, enabling stochastic ensemble generation over precipitation scaling uncertainty.
 
 ### Point Source Fluxes
 
