@@ -205,6 +205,29 @@ Torrent is configured using a JSON-based configuration file. An overview of the 
 
 Each of the configuration options are described in detail in the following sections.
 
+## Parameter Distributions (General)
+
+Several configuration values in Torrent may be specified as either deterministic numeric values or stochastic distributions.
+
+- If a single numeric value is provided, the parameter is treated as deterministic.
+- If an object is provided, the parameter is treated as stochastic and sampled per realization.
+
+Supported distribution object formats are:
+
+```json
+{"mean": [Float], "std": [Float]}
+```
+
+This represents a normal distribution.
+
+```json
+{"lower": [Float], "upper": [Float]}
+```
+
+This represents a uniform distribution.
+
+When `num-realizations` is greater than 1, distribution-based parameters are re-sampled for each realization.
+
 ## Rivulet Characteristics
 
 Rivulets are characterized by two user-adjustable parameters: their thickness, `rivulet-thickness`, and length, `rivulet-length`.
@@ -304,9 +327,8 @@ Alternatively, precipitation distributions may be encapsulated in a single, mult
 - `min-index` provides the starting band index to use. [`Int`]
 - `max-index` provides the final band index to use. [`Int`]
 - `band-interval-seconds` defines the period of time that each distribution represents. If each band is an hourly snapshot of precipitation, for example, the value would be 3,600. [`Float`]
-- `scale-factor` specifies a uniform scalar to multiply each of the precipitation bands by.
-This provides an easy way to explore what-if scenarios, e.g., what if the precipitation rate had
-been twice as great as the forecast or observed distribution? May be specified as a single float value or as a distribution (see the dam failure section for distribution syntax). When specified as a distribution, a value is sampled once per realization, enabling stochastic ensemble generation over precipitation scaling uncertainty.
+- `scale-factor` specifies a scalar to multiply each of the precipitation bands by.
+This provides an easy way to explore what-if scenarios, e.g., what if the precipitation rate had been twice as great as the forecast or observed distribution? May be specified as a single float value or as a distribution (see **Parameter Distributions (General)**). When specified as a distribution, a value is sampled once per realization, enabling stochastic ensemble generation over precipitation scaling uncertainty.
 
 ### Point Source Fluxes
 
@@ -359,30 +381,25 @@ The breach is assumed to occur gradually over a duration, `failure-period`, give
 
 `failure-start` and `failure-end` parameters (both in units of time steps) may be provided to control the timing of the failure. For example, a levee might not fail until partway through a storm event. This could be captured by a `failure-start` value sometime after the initiation of the simulation. It's also possible that crews might be able to restore the integrity of a levee before the simulation ends (e.g. by placing sand bags). This could be captured by setting a specific time for the `failure-end` parameter. By default a failure will occur at the start of the simulation and remain in place for its entire duration.
 
+Any dam-failure field marked as `[Distribution]` may use the general distribution syntax described in **Parameter Distributions (General)**.
+
 ```json
 "dam-failure": {
     "latitude": [Float],
     "longitude": [Float],
-    "breach-width-top": [Distribution],
-    "breach-width-bottom": [Distribution],
-    "reservoir-volume-initial": [Distribution],
+    "breach-width-top": [Float | Distribution],
+    "breach-width-bottom": [Float | Distribution],
+    "reservoir-volume-initial": [Float | Distribution],
     "reservoir-depth-curve": [String | Float | Array],
-    "dam-height-initial": [Distribution],
-    "dam-height-final": [Distribution],
-    "failure-period": [Distribution],
-    "failure-start": [Distribution],
-    "failure-end": [Distribution]
+    "dam-height-initial": [Float | Distribution],
+    "dam-height-final": [Float | Distribution],
+    "failure-period": [Float | Distribution],
+    "failure-start": [Float | Distribution],
+    "failure-end": [Float | Distribution]
   }
 ```
 
-Many of the parameters may be characterized by a distribution. In the configuration file this should take the form of either a single float/int value or an object. If a single float/int value is provided, it is assumed that that parameter value is deterministic. If an object is provided, the value of the associated parameter is generated stochastically. The object must contain either `mean` and `std` elements (in which case a normal distribution is assumed), e.g.:
-```json
-{"mean": [Float], "std": [Float]}
-```
-or `upper` and `lower` bounds (in which case a uniform distribution is assumed), e.g.:
-```json
-{"lower": [Float], "upper": [Float]}
-```
+Many dam-failure parameters may be characterized by either a floating point value or a distribution. See **Parameter Distributions (General)** for syntax and behavior.
 
 Finally, to simulate a breach an initial reservoir volume, `reservoir-volume-initial` (in cubic meters), and a depth/volume curve are needed. The initial volume can either be specified as a deterministic value or a distribution. The reservoir depth/volume curve, `reservoir-depth-curve`, can be specified in one of three ways:
 - `Float64`: If a floating point value is provided it is assumed that it represents the surface area (in square meters) of a reservoir with a simple rectangular bathymetry.
@@ -395,17 +412,10 @@ Finally, to simulate a breach an initial reservoir volume, `reservoir-volume-ini
 [Manning's formula](https://en.wikipedia.org/wiki/Manning_formula) is used to approximate velocities in Torrent. Manning's coefficient relates to the apparent roughness of the terrain over which the flood waters are moving.
 
 ```json
-"manning-coef": [Float] or [String]
+"manning-coef": [Float | String | Distribution]
 ```
 
-- `manning-coef` can be provided as either a `Float`, `String`, or distribution. In the first case, Manning's coefficient is assumed to be homogeneous across the simulation domain. In the second case, the `String` is taken to be the filename of a raster grid, the first band of which represents the potentially spatially varying value of the Manning coefficient. Any grid representing the manning coefficient should be in the same projection as the DEM. Finally, Manning's coefficient may be characterized by a distribution. If an object is provided, the value of the associated parameter is generated stochastically. The object must contain either `mean` and `std` elements (in which case a normal distribution is assumed), e.g.:
-```json
-{"mean": [Float], "std": [Float]}
-```
-or `upper` and `lower` bounds (in which case a uniform distribution is assumed), e.g.:
-```json
-{"lower": [Float], "upper": [Float]}
-```
+- `manning-coef` can be provided as either a `Float`, `String`, or distribution. In the first case, Manning's coefficient is assumed to be homogeneous across the simulation domain. In the second case, the `String` is taken to be the filename of a raster grid, the first band of which represents the potentially spatially varying value of the Manning coefficient. Any grid representing the manning coefficient should be in the same projection as the DEM. Finally, Manning's coefficient may be characterized by a distribution (see **Parameter Distributions (General)**).
 
 ## Contamination [ALPHA]
 
