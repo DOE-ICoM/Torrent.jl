@@ -308,7 +308,7 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
   # initialize a table to hold a running tabulation of current and
   # cumulative rivulet numbers, the associated volume, and related flux
-  flux_trace = Matrix{Float64}(undef, num_time_steps, 6)
+  flux_trace = Matrix{Float64}(undef, num_time_steps+1, 6)
 
   # initialize a grid to track peak flood depth over the course
   # of the simulation
@@ -340,7 +340,7 @@ function run(sim::Simulation, num_time_steps::Int, iteration::Int)
 
   # this loop is the guts of the simulation where we run the simulation
   # through the requested number of time steps
-  while sim_step < num_time_steps
+  while sim_step <= num_time_steps
 
     # every so often, we'll update the run status for the user
 
